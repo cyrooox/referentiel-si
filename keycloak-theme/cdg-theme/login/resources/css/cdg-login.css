@@ -1,0 +1,240 @@
+/* CDG Theme — Référentiel SI  v3 */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+/* ======= FOND PLEIN ÉCRAN ======= */
+html, body {
+  margin: 0; padding: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a2b35 0%, #0f1e28 60%, #162318 100%);
+}
+
+/* Cacher les éléments Keycloak qu'on ne veut pas */
+#kc-header, #kc-header-wrapper,
+.login-pf-header, .login-pf-brand,
+#kc-page-title { display: none !important; }
+
+/* ======= PAGE CENTRÉE ======= */
+.login-pf-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  background: transparent !important;
+}
+
+/* ======= CARTE DE LOGIN ======= */
+.card-pf, #kc-container {
+  background: rgba(30, 45, 58, 0.85) !important;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04) !important;
+  width: 100% !important;
+  max-width: 420px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+/* Barre dégradé CDG tout en haut */
+.card-pf::before, #kc-container::before {
+  content: '';
+  display: block;
+  height: 4px;
+  background: linear-gradient(90deg, #2D4A5C 0%, #6B9B2D 100%);
+}
+
+/* ======= EN-TÊTE CDG ======= */
+#cdg-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 24px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+#cdg-logo {
+  height: 52px;
+  width: auto;
+  object-fit: contain;
+  /* Convertir en blanc pour fond sombre */
+  filter: brightness(0) invert(1);
+  margin-bottom: 14px;
+}
+
+#cdg-app-name {
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+#cdg-subtitle {
+  color: #6B9B2D;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* ======= FORMULAIRE ======= */
+#kc-form-login {
+  padding: 24px 32px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Champs */
+.cdg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cdg-field label,
+.cdg-password-row label {
+  color: rgba(255,255,255,0.65);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.cdg-password-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cdg-forgot {
+  color: #6B9B2D !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+}
+.cdg-forgot:hover { color: #8ec837 !important; text-decoration: underline !important; }
+
+/* Inputs */
+#username {
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 14px;
+  padding: 12px 14px;
+  width: 100%;
+  outline: none;
+  transition: all 0.2s;
+}
+#username:focus {
+  border-color: #6B9B2D;
+  background: rgba(107,155,45,0.08);
+  box-shadow: 0 0 0 3px rgba(107,155,45,0.18);
+}
+#username::placeholder { color: rgba(255,255,255,0.25); }
+
+/* Wrapper password avec bouton œil */
+.cdg-password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  transition: all 0.2s;
+}
+.cdg-password-wrapper:focus-within {
+  border-color: #6B9B2D;
+  background: rgba(107,155,45,0.08);
+  box-shadow: 0 0 0 3px rgba(107,155,45,0.18);
+}
+
+#password {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 14px;
+  padding: 12px 14px;
+  flex: 1;
+  min-width: 0;
+  outline: none;
+  width: 100%;
+}
+#password::placeholder { color: rgba(255,255,255,0.25); }
+
+/* Bouton œil custom */
+#cdg-toggle-password {
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer;
+  padding: 0 13px;
+  color: rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s;
+  outline: none;
+}
+#cdg-toggle-password:hover { color: #6B9B2D; }
+
+/* ======= REMEMBER ME ======= */
+.cdg-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cdg-remember input[type="checkbox"] {
+  accent-color: #6B9B2D;
+  width: 15px;
+  height: 15px;
+}
+.cdg-remember label {
+  color: rgba(255,255,255,0.55);
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+/* ======= BOUTON CONNEXION ======= */
+#kc-login {
+  background: linear-gradient(135deg, #6B9B2D, #527821) !important;
+  border: none !important;
+  border-radius: 10px !important;
+  color: #fff !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  padding: 13px !important;
+  width: 100% !important;
+  cursor: pointer !important;
+  transition: all 0.25s !important;
+  box-shadow: 0 4px 18px rgba(107,155,45,0.4) !important;
+  letter-spacing: 0.4px !important;
+  margin-top: 4px !important;
+}
+#kc-login:hover {
+  background: linear-gradient(135deg, #7dba31, #6B9B2D) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 8px 24px rgba(107,155,45,0.5) !important;
+}
+#kc-login:active { transform: translateY(0) !important; }
+
+/* ======= MESSAGES D'ERREUR ======= */
+.alert-error, .pf-v5-c-alert.pf-m-danger {
+  background: rgba(220,38,38,0.12) !important;
+  border: 1px solid rgba(220,38,38,0.25) !important;
+  border-radius: 10px !important;
+  color: #fca5a5 !important;
+  padding: 11px 14px !important;
+  font-size: 13px !important;
+}

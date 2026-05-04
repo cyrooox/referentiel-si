@@ -1,0 +1,55 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@theme {
+  /* === Couleurs CDG === */
+  /* Bleu-gris principal (lettres CDG) */
+  --color-primary-50:  #eef2f5;
+  --color-primary-100: #d5e0e8;
+  --color-primary-200: #abc1d1;
+  --color-primary-300: #7fa1b9;
+  --color-primary-400: #5382a2;
+  --color-primary-500: #2D4A5C;
+  --color-primary-600: #263f4f;
+  --color-primary-700: #1e3340;
+  --color-primary-800: #162630;
+  --color-primary-900: #0e1a21;
+
+  /* Vert CDG (carré du G) */
+  --color-accent-50:  #f2f6e8;
+  --color-accent-100: #deebbf;
+  --color-accent-200: #c6dc92;
+  --color-accent-300: #adcd65;
+  --color-accent-400: #8fb83e;
+  --color-accent-500: #6B9B2D;
+  --color-accent-600: #5a8326;
+  --color-accent-700: #486b1e;
+  --color-accent-800: #365217;
+  --color-accent-900: #243a0f;
+
+  --font-family-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  @apply bg-slate-50 text-slate-800 antialiased;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Remove up/down arrows from number inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Scrollbar CDG */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #2D4A5C; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #6B9B2D; }
