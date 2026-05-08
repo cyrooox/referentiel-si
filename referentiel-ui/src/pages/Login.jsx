@@ -20,13 +20,13 @@ const Login = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    
+
     try {
       const response = await api.post('/auth/login', {
         email: email,
         motDePasse: password
       });
-      
+
       const { accessToken } = response.data;
       localStorage.setItem('jwt_token', accessToken);
       navigate('/dashboard');
@@ -49,7 +49,7 @@ const Login = () => {
           <h2 className="text-2xl font-bold text-slate-800">Référentiel SI</h2>
           <p className="mt-2 text-sm text-slate-500">Connectez-vous à votre compte</p>
         </div>
-        
+
         {error && (
           <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
             {error}
@@ -74,7 +74,7 @@ const Login = () => {
                 />
               </div>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-slate-700">Mot de passe</label>
               <div className="relative mt-1">
@@ -100,7 +100,7 @@ const Login = () => {
           >
             {loading ? 'Connexion en cours...' : 'Se connecter'}
           </button>
-          
+
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -118,10 +118,10 @@ const Login = () => {
                 className="w-full flex justify-center items-center gap-3 py-2.5 px-4 border border-slate-300 rounded-lg shadow-sm bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
               >
                 <svg className="w-5 h-5" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-                  <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-                  <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-                  <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                  <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+                  <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+                  <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+                  <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
                 </svg>
                 Microsoft
               </button>

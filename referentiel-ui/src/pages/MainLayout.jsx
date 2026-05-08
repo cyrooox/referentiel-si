@@ -159,19 +159,6 @@ const MainLayout = () => {
             </Link>
           )}
 
-          {/* Configuration — Admin uniquement */}
-          {isAdmin && (
-            <Link
-              to="/settings"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all font-medium text-sm ${
-                isActive('/settings') ? 'font-semibold' : 'hover:bg-white/10'
-              }`}
-              style={isActive('/settings') ? {background:'#6B9B2D', color:'white'} : {color:'rgba(255,255,255,0.8)'}}
-            >
-              <Settings className="w-5 h-5" />
-              Configuration
-            </Link>
-          )}
         </nav>
 
         <div className="p-4 border-t" style={{borderColor:'rgba(255,255,255,0.1)'}}>

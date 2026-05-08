@@ -273,8 +273,8 @@ const DashboardHome = () => {
       </div>
 
       <div className="mt-8 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-slate-700">Mes Projets Récents</h3>
+        <div className="p-4 border-b border-slate-100">
+          <h3 className="text-sm font-bold text-slate-700">Projets Récents</h3>
         </div>
         {projetsRecents.length === 0 ? (
           <div className="p-12 text-center text-slate-400">

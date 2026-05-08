@@ -12,6 +12,14 @@
             <div id="cdg-subtitle">CDG &bull; Caisse de Dépôt et de Gestion</div>
         </div>
 
+        <!-- ===== MESSAGES D'ERREUR ===== -->
+        <#if message?has_content && message.type == 'error'>
+            <div style="background-color: #fef2f2; border: 1px solid #f87171; color: #b91c1c; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                ${kcSanitize(message.summary)?no_esc}
+            </div>
+        </#if>
+
         <!-- ===== FORMULAIRE ===== -->
         <form id="kc-form-login" action="${url.loginAction}" method="post">
 
@@ -66,6 +74,30 @@
             <input tabindex="4" type="submit" id="kc-login" value="${msg('doLogIn')}" />
 
         </form>
+
+        <!-- ===== SOCIAL PROVIDERS (Microsoft) ===== -->
+        <#if realm.password && social.providers??>
+            <div id="kc-social-providers" style="margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 24px; text-align: center;">
+                <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">Ou connectez-vous avec</p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <#list social.providers as p>
+                        <a id="social-${p.alias}" href="${p.loginUrl}" style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 16px; border: 1px solid #cbd5e1; border-radius: 8px; text-decoration: none; color: #334155; font-weight: 500; background-color: #ffffff; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); transition: background-color 0.2s;">
+                            <#if p.alias == "microsoft">
+                                <svg width="20" height="20" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                                    <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                                    <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                                    <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                                </svg>
+                            <#else>
+                                <span class="kc-social-icon-text">${p.displayName!}</span>
+                            </#if>
+                            <span>Microsoft</span>
+                        </a>
+                    </#list>
+                </div>
+            </div>
+        </#if>
 
         <script>
             function togglePassword() {

@@ -209,7 +209,7 @@ public class AuthController {
                 "credentials", Collections.singletonList(Map.of(
                     "type", "password",
                     "value", request.getMotDePasse(),
-                    "temporary", false
+                    "temporary", true
                 ))
             );
 
