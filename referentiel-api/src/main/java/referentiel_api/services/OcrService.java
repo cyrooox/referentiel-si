@@ -21,6 +21,14 @@ import java.util.regex.Pattern;
 @Service
 public class OcrService {
 
+    private final NlpService nlpService;
+    private final TabulaService tabulaService;
+
+    public OcrService(NlpService nlpService, TabulaService tabulaService) {
+        this.nlpService = nlpService;
+        this.tabulaService = tabulaService;
+    }
+
     // ── Patterns de dates (formats français courants) ──
     private static final Pattern DATE_PATTERN = Pattern.compile(
         "\\b(\\d{1,2})[/\\-\\.](\\d{1,2})[/\\-\\.](\\d{4})\\b|\\b(\\d{4})[/\\-\\.](\\d{1,2})[/\\-\\.](\\d{1,2})\\b"
@@ -66,8 +74,13 @@ public class OcrService {
      */
     private OcrResultDto extractFromPdf(MultipartFile file) throws IOException {
         OcrResultDto result = new OcrResultDto();
-        result.setMethodeExtraction("PDFBOX");
+        result.setMethodeExtraction("PDFBOX_TABULA_NLP");
 
+        // 1. Extraction des tableaux via Tabula
+        java.util.List<referentiel_api.dto.LivrableOcrDto> livrables = tabulaService.extractTablesAsLivrables(file);
+        result.setLivrablesExtraits(livrables);
+
+        // 2. Extraction du texte brut via PDFBox
         try (PDDocument document = Loader.loadPDF(file.getBytes())) {
             PDFTextStripper stripper = new PDFTextStripper();
             String texte = stripper.getText(document);
@@ -217,9 +230,40 @@ public class OcrService {
                 dateCount++;
             }
         }
+
+        // --- 🤖 ENRICHISSEMENT PAR INTELLIGENCE ARTIFICIELLE (NLP) CONTEXTUEL ---
+        
+        // Extraction contextuelle pour le Chef de projet
+        if (result.getNomChefDeProjet() == null) {
+            String contexteChef = extraireContexte(texte, "chef de projet", 150);
+            java.util.List<String> personnes = nlpService.extractPersons(contexteChef);
+            if (!personnes.isEmpty()) {
+                result.setNomChefDeProjet(capitaliser(personnes.get(0)));
+            }
+        }
+
+        // Extraction contextuelle pour le Prestataire
+        if (result.getPrestataire() == null) {
+            String contextePres = extraireContexte(texte, "prestataire", 150);
+            if (contextePres.equals(texte)) contextePres = extraireContexte(texte, "titulaire", 150);
+            
+            java.util.List<String> organisations = nlpService.extractOrganizations(contextePres);
+            if (!organisations.isEmpty()) {
+                result.setPrestataire(capitaliser(organisations.get(0)));
+            }
+        }
     }
 
     // ── Utilitaires ──
+
+    private String extraireContexte(String texte, String motCle, int rayon) {
+        int index = texte.toLowerCase().indexOf(motCle.toLowerCase());
+        if (index == -1) return texte; // On retourne tout si on ne trouve pas le mot-clé
+        
+        int start = Math.max(0, index - rayon);
+        int end = Math.min(texte.length(), index + motCle.length() + rayon);
+        return texte.substring(start, end);
+    }
 
     private String capitaliser(String texte) {
         if (texte == null || texte.isBlank()) return texte;

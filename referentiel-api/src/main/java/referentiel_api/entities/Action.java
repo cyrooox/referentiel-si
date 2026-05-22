@@ -22,5 +22,6 @@ public class Action {
 
     @ManyToOne
     @JoinColumn(name = "projet_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Projet projet;
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FolderPlus, Pencil, Trash2, Calendar, DollarSign, Activity, AlertCircle, Search, Filter, UserPlus, CheckCircle } from 'lucide-react';
+import { FolderPlus, Pencil, Trash2, Calendar, DollarSign, Activity, AlertCircle, Search, Filter, UserPlus, CheckCircle, FileDown } from 'lucide-react';
 import api from '../api/axios';
 import { useKeycloak } from '../KeycloakProvider';
 
@@ -16,16 +16,17 @@ const ProjectsManagement = () => {
 
   // Utilisateur connecté via Keycloak
   const { userInfo } = useKeycloak();
-  const currentRole  = userInfo?.role;       // 'ADMIN', 'PMO', 'CHEF_PROJET'
+  const currentRole = userInfo?.role;       // 'ADMIN', 'PMO', 'CHEF_PROJET'
   const currentEmail = userInfo?.email;      // email de l'utilisateur connecté
-  const isAdmin      = currentRole === 'ADMIN';
-  const isPmo        = currentRole === 'PMO';
+  const isAdmin = currentRole === 'ADMIN';
+  const isPmo = currentRole === 'PMO';
   const isChefProjet = currentRole === 'CHEF_PROJET';
 
-  // PMO peut éditer uniquement les projets qui lui sont assignés
+  // Chef de Projet peut éditer uniquement les projets qui lui sont assignés
+  // PMO peut éditer tous les projets
   const canEdit = (projet) => {
-    if (isAdmin || isChefProjet) return true;
-    if (isPmo) {
+    if (isAdmin || isPmo) return true;
+    if (isChefProjet) {
       // Comparaison insensible à la casse
       return projet.chefDeProjet?.email?.toLowerCase() === currentEmail?.toLowerCase();
     }
@@ -52,7 +53,7 @@ const ProjectsManagement = () => {
   const [assignProject, setAssignProject] = useState(null);
   const [selectedChefId, setSelectedChefId] = useState('');
   const [searchAssignText, setSearchAssignText] = useState('');
-  
+
   // Widget Temps Restant
   const [selectedProjectForTimer, setSelectedProjectForTimer] = useState(null);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -81,12 +82,36 @@ const ProjectsManagement = () => {
 
   useEffect(() => {
     fetchInitialData();
-    if (location.state?.openInitModal) {
+    if (location.state?.openInitModal && (isPmo || isAdmin)) {
       setShowModal(true);
       // Nettoyer le state local sans recharger la page
       window.history.replaceState({}, '')
     }
   }, [location.state]);
+
+  // Téléchargement du rapport PDF
+  const handleDownloadRapport = async (e, projet) => {
+    e.stopPropagation();
+    // PMO → rapport complet (crée et supervise tous les projets, accès financiers)
+    // Chef de Projet → rapport opérationnel (accès limité à ses projets assignés)
+    const role = currentRole === 'PMO' ? 'PMO' : 'CHEF_PROJET';
+    try {
+      const response = await api.get(`/projets/${projet.id}/rapport?role=${role}`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Rapport_${role}_${projet.code}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Erreur génération rapport', err);
+      alert('Impossible de générer le rapport.');
+    }
+  };
 
   // Live countdown timer
   useEffect(() => {
@@ -157,7 +182,7 @@ const ProjectsManagement = () => {
       const response = await api.post('/projets', payload);
       setProjets([...projets, response.data]);
       setShowModal(false);
-      setNewProjet({ nom: '', code: '', budgetInitial: '', phaseCourante: 'Cadrage / Pré-Etude', type: '', directionMetier: '', chefDeProjetId: '' }); 
+      setNewProjet({ nom: '', code: '', budgetInitial: '', phaseCourante: 'Cadrage / Pré-Etude', type: '', directionMetier: '', chefDeProjetId: '' });
     } catch (error) {
       console.error("Erreur de création de projet", error);
     }
@@ -185,22 +210,22 @@ const ProjectsManagement = () => {
       setProjets(projets.map(p => p.id === assignProject.id ? response.data : p));
       setShowAssignModal(false);
     } catch (error) {
-       console.error(error);
-       alert("Erreur lors de l'assignation : " + (error.response?.data?.message || error.message));
+      console.error(error);
+      alert("Erreur lors de l'assignation : " + (error.response?.data?.message || error.message));
     }
   };
 
   // Logique de filtrage
   let projetsFiltres = projets;
 
-  // 1. PMO ne voit QUE ses projets assignés
-  if (isPmo && currentEmail) {
+  // 1. Chef de Projet ne voit QUE ses projets assignés
+  if (isChefProjet && currentEmail) {
     projetsFiltres = projetsFiltres.filter(
       p => p.chefDeProjet?.email?.toLowerCase() === currentEmail.toLowerCase()
     );
   }
 
-  // 2. Chef de Projet voit tous les projets
+  // 2. PMO voit TOUS les projets (superviseur général)
   // (pas de filtre supplémentaire)
 
   // 3. Filtre par utilisateur ciblé (pour l'admin uniquement)
@@ -210,8 +235,8 @@ const ProjectsManagement = () => {
 
   // 3. Barre de recherche
   if (searchTerm) {
-    projetsFiltres = projetsFiltres.filter(p => 
-      p.nom.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    projetsFiltres = projetsFiltres.filter(p =>
+      p.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.code.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }
@@ -219,7 +244,7 @@ const ProjectsManagement = () => {
   // Calcul du Widget Temps Restant
   const months = Math.floor(countdown.days / 30);
   const remainingDays = countdown.days % 30;
-  const countdownDisplay = months > 0 
+  const countdownDisplay = months > 0
     ? `${months} mois et ${remainingDays} j`
     : `${countdown.days} j`;
 
@@ -230,7 +255,7 @@ const ProjectsManagement = () => {
     if (statut === 'Terminé' || dateReelleFin) {
       return (
         <div className="bg-slate-50 text-slate-700 px-4 py-3 rounded-xl border border-slate-200 flex items-center gap-3 shadow-sm animate-fade-in transition-all">
-          <CheckCircle className="w-5 h-5 text-slate-500" /> 
+          <CheckCircle className="w-5 h-5 text-slate-500" />
           <div>
             <span className="block text-xs font-semibold uppercase tracking-wide opacity-80">Statut Planning</span>
             <span className="font-medium">Projet Clôturé</span>
@@ -238,11 +263,11 @@ const ProjectsManagement = () => {
         </div>
       );
     }
-    
+
     if (!dateDebutPrevue || !dateFinPrevue) {
       return (
         <div className="bg-orange-50 text-orange-700 px-4 py-3 rounded-xl border border-orange-100 flex items-center gap-3 shadow-sm animate-fade-in transition-all">
-          <Calendar className="w-5 h-5" /> 
+          <Calendar className="w-5 h-5" />
           <div>
             <span className="block text-xs font-semibold uppercase tracking-wide opacity-80">Temps Restant</span>
             <span className="font-medium inline-block max-w-[200px] truncate text-sm" title="Vérifiez les dates de début et fin prévues dans l'onglet Planning">Dates prévues incomplètes</span>
@@ -258,7 +283,7 @@ const ProjectsManagement = () => {
     if (now < start) {
       return (
         <div className="bg-indigo-50 text-indigo-700 px-4 py-3 rounded-xl border border-indigo-100 flex items-center gap-3 shadow-sm animate-fade-in transition-all">
-          <Calendar className="w-5 h-5" /> 
+          <Calendar className="w-5 h-5" />
           <div>
             <span className="block text-xs font-semibold uppercase tracking-wide opacity-80">Démarre dans</span>
             <span className="font-bold text-lg font-mono tracking-wider">{countdownDisplay}</span>
@@ -274,7 +299,7 @@ const ProjectsManagement = () => {
     if (now > end) {
       return (
         <div className="bg-red-50 text-red-700 px-4 py-3 rounded-xl border border-red-100 flex items-center gap-3 shadow-sm animate-fade-in transition-all">
-          <AlertCircle className="w-5 h-5" /> 
+          <AlertCircle className="w-5 h-5" />
           <div>
             <span className="block text-xs font-semibold uppercase tracking-wide opacity-80">En retard de</span>
             <span className="font-bold text-lg font-mono tracking-wider">{countdownDisplay}</span>
@@ -285,15 +310,15 @@ const ProjectsManagement = () => {
 
     return (
       <div className="bg-green-50 text-green-700 px-4 py-3 rounded-xl border border-green-100 flex items-center gap-3 shadow-sm animate-fade-in transition-all">
-        <Calendar className="w-5 h-5" /> 
+        <Calendar className="w-5 h-5" />
         <div>
-           <div className="flex justify-between items-center mb-1">
-             <span className="text-xs font-semibold uppercase tracking-wide opacity-80">Temps Restant</span>
-           </div>
-           <span className="font-bold text-lg font-mono tracking-wider">{countdownDisplay}</span>
-           <div className="w-48 h-2 bg-green-200 rounded-full overflow-hidden mt-1">
-             <div className="h-full bg-green-500 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div>
-           </div>
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wide opacity-80">Temps Restant</span>
+          </div>
+          <span className="font-bold text-lg font-mono tracking-wider">{countdownDisplay}</span>
+          <div className="w-48 h-2 bg-green-200 rounded-full overflow-hidden mt-1">
+            <div className="h-full bg-green-500 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div>
+          </div>
         </div>
       </div>
     );
@@ -305,7 +330,7 @@ const ProjectsManagement = () => {
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <FolderPlus className="w-8 h-8 text-primary-600" />
-            {isAdmin ? "Tous les Projets" : isPmo ? "Mes Projets Assignés" : "Gestion des Projets"}
+            {isAdmin ? "Tous les Projets" : isChefProjet ? "Mes Projets Assignés" : "Supervision des Projets"}
           </h2>
           <p className="text-slate-500 mt-1">Supervisez et mettez à jour l'état des projets</p>
         </div>
@@ -317,27 +342,27 @@ const ProjectsManagement = () => {
           <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
             <Search className="w-5 h-5 text-slate-400" />
           </div>
-          <input 
-            type="text" 
-            placeholder="Rechercher par code ou nom..." 
+          <input
+            type="text"
+            placeholder="Rechercher par code ou nom..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
           />
         </div>
-        
-        { isAdmin && (
+
+        {isAdmin && (
           <div className="sm:w-64">
-             <select 
-                value={filterUser}
-                onChange={(e) => setFilterUser(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white"
-             >
-                <option value="">Tous les utilisateurs</option>
-                {utilisateurs.map(u => (
-                  <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>
-                ))}
-             </select>
+            <select
+              value={filterUser}
+              onChange={(e) => setFilterUser(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white"
+            >
+              <option value="">Tous les utilisateurs</option>
+              {utilisateurs.map(u => (
+                <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>
+              ))}
+            </select>
           </div>
         )}
       </div>
@@ -348,13 +373,17 @@ const ProjectsManagement = () => {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-16 flex flex-col items-center justify-center text-center">
           <FolderPlus className="w-16 h-16 text-slate-200 mb-4" />
           <h3 className="text-xl font-bold text-slate-700">Aucun projet</h3>
-          <p className="text-slate-500 mt-2 max-w-sm">Vous n'avez pas encore de projet dans votre portefeuille. Cliquez sur "Nouveau Projet" pour commencer.</p>
+          <p className="text-slate-500 mt-2 max-w-sm">
+            {isChefProjet
+              ? "Vous n'avez pas encore de projet assigné dans votre portefeuille."
+              : "Vous n'avez pas encore de projet dans votre portefeuille. Cliquez sur \"Nouveau projet\" pour commencer."}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {projetsFiltres.map((projet) => (
-            <div 
-              key={projet.id} 
+            <div
+              key={projet.id}
               onClick={() => setSelectedProjectForTimer(projet)}
               className={`bg-white rounded-xl shadow-sm border p-6 hover:shadow-md transition-all cursor-pointer ${selectedProjectForTimer?.id === projet.id ? 'ring-2 ring-primary-500 border-primary-500' : 'border-slate-200'}`}
             >
@@ -393,24 +422,34 @@ const ProjectsManagement = () => {
 
               <div className="flex justify-between items-center pt-4 border-t border-slate-100">
                 <div className="flex items-center gap-3">
-                  {isChefProjet && (
-                     <button 
-                       onClick={(e) => { e.stopPropagation(); openAssignModal(projet); }}
-                       className="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-indigo-50">
-                       <UserPlus className="w-4 h-4" /> Attribuer
-                     </button>
+                  {isPmo && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openAssignModal(projet); }}
+                      className="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-indigo-50">
+                      <UserPlus className="w-4 h-4" /> Attribuer
+                    </button>
+                  )}
+                  {/* Bouton Rapport PDF — visible pour PMO et Chef de projet */}
+                  {(isPmo || isChefProjet) && (
+                    <button
+                      onClick={(e) => handleDownloadRapport(e, projet)}
+                      className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-emerald-50 border border-emerald-200"
+                      title="Télécharger le rapport PDF"
+                    >
+                      <FileDown className="w-4 h-4" /> Rapport PDF
+                    </button>
                   )}
                 </div>
                 <div className="flex justify-end gap-3">
                   {canEdit(projet) && (
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); navigate(`/projects/edit/${projet.id}`); }}
                       className="text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-primary-50">
                       <Pencil className="w-4 h-4" /> Détails & Editer
                     </button>
                   )}
-                  {isChefProjet && (
-                    <button 
+                  {isPmo && (
+                    <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(projet.id); }}
                       className="text-sm font-medium text-slate-600 hover:text-red-600 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-red-50"
                     >
@@ -432,12 +471,12 @@ const ProjectsManagement = () => {
             <form className="space-y-4" onSubmit={handleCreateProject}>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Nom du projet</label>
-                <input 
-                  type="text" 
-                  value={newProjet.nom} 
-                  onChange={e => setNewProjet({...newProjet, nom: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" 
-                  required 
+                <input
+                  type="text"
+                  value={newProjet.nom}
+                  onChange={e => setNewProjet({ ...newProjet, nom: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                  required
                 />
               </div>
               <div className="flex justify-end gap-3 mt-8">
@@ -450,7 +489,7 @@ const ProjectsManagement = () => {
               </div>
             </form>
           </div>
-         </div>
+        </div>
       )}
 
       {/* Modal d'assignation rapide */}
@@ -466,12 +505,12 @@ const ProjectsManagement = () => {
                 <p className="text-sm text-slate-500">{assignProject?.nom}</p>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
-                
+
                 {/* Option 1 : Retirer l'assignation / Mettre en attente */}
-                <div 
+                <div
                   onClick={() => setSelectedChefId('')}
                   className={`p-3 border rounded-xl cursor-pointer transition-all flex items-center justify-between ${selectedChefId === '' ? 'border-orange-500 bg-orange-50 ring-1 ring-orange-500' : 'border-slate-200 hover:border-orange-300 hover:bg-slate-50'}`}
                 >
@@ -506,32 +545,32 @@ const ProjectsManagement = () => {
                   .filter(u => u.role === 'CHEF_PROJET' || u.role === 'PMO')
                   .filter(u => `${u.prenom} ${u.nom}`.toLowerCase().includes(searchAssignText.toLowerCase()))
                   .map(u => {
-                  const isSelected = selectedChefId === String(u.id) || selectedChefId === u.id;
-                  return (
-                    <div 
-                      key={u.id}
-                      onClick={() => setSelectedChefId(u.id)}
-                      className={`p-3 border rounded-xl cursor-pointer transition-all flex items-center justify-between ${isSelected ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' : 'border-slate-200 hover:border-primary-300 hover:bg-slate-50'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${isSelected ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-600'}`}>
-                          {u.prenom.charAt(0)}{u.nom.charAt(0)}
+                    const isSelected = selectedChefId === String(u.id) || selectedChefId === u.id;
+                    return (
+                      <div
+                        key={u.id}
+                        onClick={() => setSelectedChefId(u.id)}
+                        className={`p-3 border rounded-xl cursor-pointer transition-all flex items-center justify-between ${isSelected ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' : 'border-slate-200 hover:border-primary-300 hover:bg-slate-50'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${isSelected ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-600'}`}>
+                            {u.prenom.charAt(0)}{u.nom.charAt(0)}
+                          </div>
+                          <div>
+                            <p className={`font-semibold text-sm ${isSelected ? 'text-primary-800' : 'text-slate-800'}`}>{u.prenom} {u.nom}</p>
+                            <p className="text-xs text-slate-500">{u.role ? u.role.replace('ROLE_', '') : ''}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className={`font-semibold text-sm ${isSelected ? 'text-primary-800' : 'text-slate-800'}`}>{u.prenom} {u.nom}</p>
-                          <p className="text-xs text-slate-500">{u.role ? u.role.replace('ROLE_', '') : ''}</p>
-                        </div>
+                        {isSelected && <CheckCircle className="w-5 h-5 text-primary-600" />}
                       </div>
-                      {isSelected && <CheckCircle className="w-5 h-5 text-primary-600" />}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
 
                 {utilisateurs.filter(u => u.role === 'CHEF_PROJET' || u.role === 'PMO').filter(u => `${u.prenom} ${u.nom}`.toLowerCase().includes(searchAssignText.toLowerCase())).length === 0 && (
-                   <div className="text-center py-4 text-slate-500 text-sm italic">Aucun Chef de projet trouvé.</div>
+                  <div className="text-center py-4 text-slate-500 text-sm italic">Aucun Chef de projet trouvé.</div>
                 )}
               </div>
-              
+
               <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
                 <button type="button" onClick={() => setShowAssignModal(false)} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors">
                   Annuler

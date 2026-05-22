@@ -90,7 +90,7 @@ const MainLayout = () => {
             Dashboard
           </Link>
 
-          {/* Projets — Chef de Projet (créateur) et PMO (lecteur) */}
+          {/* Projets — Chef de Projet (lecteur) et PMO (créateur/lecteur) */}
           {(isChefProjet || isPMO) && (
             <div>
               <button
@@ -116,7 +116,7 @@ const MainLayout = () => {
                   >
                     Liste des projets
                   </Link>
-                  {isChefProjet && (
+                  {isPMO && (
                     <Link
                       to="/projects"
                       state={{ openInitModal: true }}

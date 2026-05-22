@@ -22,5 +22,6 @@ public class Livrable {
 
     @ManyToOne
     @JoinColumn(name = "sous_phase_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private SousPhase sousPhase;
 }

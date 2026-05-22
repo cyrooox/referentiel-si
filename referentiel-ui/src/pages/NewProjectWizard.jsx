@@ -170,14 +170,48 @@ const NewProjectWizard = () => {
 
   // Applique les données extraites par OCR dans le formulaire
   const handleOcrApply = (patch) => {
-    setFormData(prev => ({
-      ...prev,
-      ...patch,
-      // Fusionner les contrats OCR avec les contrats existants
-      contrats: patch.contrats
-        ? [...patch.contrats, ...prev.contrats]
-        : prev.contrats,
-    }));
+    let updatedForm = { ...formData, ...patch };
+
+    // Fusionner les contrats OCR avec les contrats existants
+    const currentContrats = updatedForm.contratsPrestataires || [];
+    if (patch.contratsPrestataires && patch.contratsPrestataires.length > 0) {
+      const ocrContrat = patch.contratsPrestataires[0];
+      if (!currentContrats.some(c => c.reference === ocrContrat.reference)) {
+         updatedForm.contratsPrestataires = [...currentContrats, ocrContrat];
+      }
+    }
+
+    // --- NOUVEAU: Application des Tableaux de Livrables (Tabula) ---
+    if (patch.livrablesExtraits && patch.livrablesExtraits.length > 0) {
+      if (updatedForm.sousPhases.length === 0) {
+        updatedForm.sousPhases.push({
+          nomPhase: 'Phase Importée (OCR)',
+          statut: 'Non entamée',
+          dateDebut: updatedForm.dateDebutPrevue || '',
+          dateFin: updatedForm.dateFinPrevue || '',
+          urlPvReception: '',
+          livrables: []
+        });
+      }
+      
+      const phaseCible = updatedForm.sousPhases[0];
+      if (!phaseCible.livrables) phaseCible.livrables = [];
+
+      patch.livrablesExtraits.forEach(liv => {
+        // Éviter les doublons basiques
+        if (!phaseCible.livrables.some(l => l.titre === liv.nomLivrable)) {
+          phaseCible.livrables.push({
+            titre: liv.nomLivrable || 'Livrable sans nom',
+            description: liv.description || '',
+            statut: 'À faire',
+            datePrevue: '',
+            dateReelle: ''
+          });
+        }
+      });
+    }
+
+    setFormData(updatedForm);
     // Naviguer vers la section Infos pour voir le résultat
     setActiveSectionIndex(0);
   };

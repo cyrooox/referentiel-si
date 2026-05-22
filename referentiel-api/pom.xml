@@ -79,6 +79,24 @@
 			<artifactId>pdfbox</artifactId>
 			<version>3.0.3</version>
 		</dependency>
+		<!-- OpenNLP : Intelligence Artificielle Locale (NER) -->
+		<dependency>
+			<groupId>org.apache.opennlp</groupId>
+			<artifactId>opennlp-tools</artifactId>
+			<version>2.3.0</version>
+		</dependency>
+		<!-- Tabula : Extraction de tableaux dans PDF -->
+		<dependency>
+			<groupId>technology.tabula</groupId>
+			<artifactId>tabula</artifactId>
+			<version>1.0.5</version>
+		</dependency>
+		<!-- OpenPDF : Génération de rapports PDF (100% local, licence LGPL) -->
+		<dependency>
+			<groupId>com.github.librepdf</groupId>
+			<artifactId>openpdf</artifactId>
+			<version>1.3.35</version>
+		</dependency>
 	</dependencies>
 
 	<build>

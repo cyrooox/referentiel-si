@@ -1,6 +1,8 @@
 package referentiel_api.dto;
 
 import lombok.Data;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * DTO retourné par l'OCR après extraction des informations d'un document.
@@ -31,6 +33,9 @@ public class OcrResultDto {
     private String typeMarche;
     private Double montantContractuel;
     private Integer delaiExecutionMois;
+
+    // Nouveau champ pour les tableaux Tabula
+    private List<LivrableOcrDto> livrablesExtraits = new ArrayList<>();
 
     // ── Section 5 : Budget & Finances ──
     private Double budgetInitial;
