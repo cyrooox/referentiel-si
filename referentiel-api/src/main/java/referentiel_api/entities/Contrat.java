@@ -24,6 +24,7 @@ public class Contrat {
     private Integer delaiExecutionMois;
     private Double montantContractuel;
     private String urlDocument;
+    private String prestataires;
 
     @ManyToOne
     @JoinColumn(name = "projet_id")

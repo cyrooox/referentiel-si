@@ -21,6 +21,9 @@ public class Risque {
     private String impact; // Faible, Moyen, Fort
     private String responsable;
 
+    @Column(columnDefinition = "TEXT")
+    private String planAction;
+
     @ManyToOne
     @JoinColumn(name = "projet_id")
     @com.fasterxml.jackson.annotation.JsonIgnore

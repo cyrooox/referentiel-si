@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import keycloak from './keycloak';
 import api from './api/axios';
+import TotpSetup from './components/TotpSetup';
+import MfaVerification from './components/MfaVerification';
 
 const KeycloakContext = createContext(null);
 
@@ -11,18 +13,22 @@ export const KeycloakProvider = ({ children }) => {
   const [authenticated, setAuthenticated] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
 
+  // États 2FA TOTP
+  const [totpSetupRequired, setTotpSetupRequired] = useState(false);   // Première fois → scanner QR
+  const [totpVerifyRequired, setTotpVerifyRequired] = useState(false);  // Connexions suivantes → saisir code
+  const [mfaEmail, setMfaEmail] = useState('');
+
   useEffect(() => {
     keycloak
       .init({
-        onLoad: 'login-required',       // Redirige vers Keycloak si non connecté
-        checkLoginIframe: false,        // Évite des problèmes CORS en dev
-        pkceMethod: 'S256',            // Sécurité renforcée
+        onLoad: 'login-required',
+        checkLoginIframe: false,
+        pkceMethod: 'S256',
       })
       .then(async (auth) => {
         setAuthenticated(auth);
 
         if (auth) {
-          // Debug : affiche le contenu du token pour vérification
           console.log('🔑 Token Keycloak parsé:', keycloak.tokenParsed);
           console.log('👤 Rôles:', keycloak.tokenParsed?.realm_access?.roles);
           console.log('📧 Email:', keycloak.tokenParsed?.email);
@@ -30,7 +36,20 @@ export const KeycloakProvider = ({ children }) => {
           // Synchronise l'utilisateur avec la BDD PostgreSQL
           try {
             const response = await api.post('/auth/sync');
-            setUserInfo(response.data);
+            const data = response.data;
+
+            if (data.totpSetupRequired) {
+              // Première connexion Microsoft → configurer le 2FA TOTP
+              setTotpSetupRequired(true);
+              setMfaEmail(data.email);
+            } else if (data.totpVerifyRequired) {
+              // 2FA déjà activé → vérifier le code
+              setTotpVerifyRequired(true);
+              setMfaEmail(data.email);
+            } else {
+              // Utilisateur local → connexion directe
+              setUserInfo(data);
+            }
           } catch (err) {
             console.error('Erreur sync utilisateur:', err);
           }
@@ -43,7 +62,7 @@ export const KeycloakProvider = ({ children }) => {
         setInitialized(true);
       });
 
-    // Rafraîchir le token toutes les 4 minutes (avant expiration de 5 min)
+    // Rafraîchir le token toutes les 4 minutes
     const refreshInterval = setInterval(() => {
       keycloak.updateToken(60).catch(() => {
         console.warn('Session expirée, déconnexion...');
@@ -59,6 +78,7 @@ export const KeycloakProvider = ({ children }) => {
     keycloak.logout({ redirectUri: window.location.origin });
   };
 
+  // ── Écran de chargement ────────────────────────────────────────────────
   if (!initialized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -67,6 +87,34 @@ export const KeycloakProvider = ({ children }) => {
           <p className="text-slate-600 font-medium">Connexion en cours...</p>
         </div>
       </div>
+    );
+  }
+
+  // ── Setup TOTP (première connexion Microsoft) ──────────────────────────
+  if (totpSetupRequired) {
+    return (
+      <TotpSetup
+        email={mfaEmail}
+        onActivated={(userData) => {
+          setUserInfo(userData);
+          setTotpSetupRequired(false);
+        }}
+        onLogout={logout}
+      />
+    );
+  }
+
+  // ── Vérification TOTP (connexions suivantes) ───────────────────────────
+  if (totpVerifyRequired) {
+    return (
+      <MfaVerification
+        email={mfaEmail}
+        onVerified={(userData) => {
+          setUserInfo(userData);
+          setTotpVerifyRequired(false);
+        }}
+        onLogout={logout}
+      />
     );
   }
 

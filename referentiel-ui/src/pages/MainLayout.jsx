@@ -1,23 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
-import { LogOut, FolderKanban, Users, Settings, Activity, Database, ChevronDown, ShieldAlert } from 'lucide-react';
+import {
+  LogOut, FolderKanban, Users, Settings, Activity, Database,
+  ChevronDown, ShieldAlert, Map, DollarSign, Presentation,
+  ShieldCheck, Bell, ClipboardList
+} from 'lucide-react';
 import { useKeycloak } from '../KeycloakProvider';
+import NotificationPanel from '../components/NotificationPanel';
+import api from '../api/axios';
 
 const MainLayout = () => {
   const location = useLocation();
+  const editProjectMatch = location.pathname.match(/^\/projects\/edit\/(\d+)/);
+  const currentProjectId = editProjectMatch ? editProjectMatch[1] : null;
   const [isProjectsMenuOpen, setIsProjectsMenuOpen] = useState(
     location.pathname.startsWith('/projects')
   );
   const { userInfo, logout } = useKeycloak();
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const bellRef = useRef(null);
 
-  // Source fiable : rôle venant de PostgreSQL via /auth/sync
-  const role = userInfo?.role; // 'ADMIN', 'PMO', 'CHEF_PROJET', 'EN_ATTENTE'
+  const role = userInfo?.role;
   const isAdmin      = role === 'ADMIN';
   const isPMO        = role === 'PMO';
   const isChefProjet = role === 'CHEF_PROJET';
+  const isMembre     = role === 'MEMBRE';
   const isEnAttente  = role === 'EN_ATTENTE' || !role;
 
-  // Infos affichage
   const nom      = userInfo?.nom    || '';
   const prenom   = userInfo?.prenom || '';
   const email    = userInfo?.email  || '';
@@ -30,12 +40,37 @@ const MainLayout = () => {
     ADMIN:       '🔴 Administrateur',
     PMO:         '🔵 PMO',
     CHEF_PROJET: '🟢 Chef de Projet',
+    MEMBRE:      '🟡 Membre',
     EN_ATTENTE:  '⏳ En attente',
   }[role] || 'Utilisateur';
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
 
-  // Utilisateur en attente : page bloquée
+  // Polling notifications count
+  useEffect(() => {
+    if (!userInfo) return;
+    const fetchCount = async () => {
+      try {
+        const res = await api.get('/notifications/unread-count');
+        setUnreadCount(res.data);
+      } catch { /* silent */ }
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
+  }, [userInfo]);
+
+  // Close notif panel on outside click
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (bellRef.current && !bellRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
   if (isEnAttente) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -69,7 +104,7 @@ const MainLayout = () => {
             <div className="w-px h-8" style={{background:'rgba(255,255,255,0.25)'}} />
             <div className="flex flex-col">
               <span className="text-white font-bold text-sm tracking-wide leading-tight">Référentiel SI</span>
-              <span className="text-xs font-light" style={{color:'#6B9B2D', letterSpacing:'0.05em'}}>CDG • Système d’Information</span>
+              <span className="text-xs font-light" style={{color:'#6B9B2D', letterSpacing:'0.05em'}}>CDG • Système d'Information</span>
             </div>
           </div>
         </div>
@@ -87,11 +122,11 @@ const MainLayout = () => {
             style={isActive('/dashboard') ? {background:'#6B9B2D', color:'white'} : {color:'rgba(255,255,255,0.8)'}}
           >
             <Activity className="w-5 h-5" />
-            Dashboard
+            Mon Espace
           </Link>
 
-          {/* Projets — Chef de Projet (lecteur) et PMO (créateur/lecteur) */}
-          {(isChefProjet || isPMO) && (
+          {/* Projets */}
+          {(isChefProjet || isPMO || isMembre) && (
             <div>
               <button
                 onClick={() => setIsProjectsMenuOpen(!isProjectsMenuOpen)}
@@ -131,6 +166,87 @@ const MainLayout = () => {
             </div>
           )}
 
+          {/* Roadmap — PMO + Chef de Projet */}
+          {(isPMO || isChefProjet) && (
+            <Link
+              to="/roadmap"
+              className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all font-medium text-sm ${
+                isActive('/roadmap') ? 'font-semibold' : 'hover:bg-white/10'
+              }`}
+              style={isActive('/roadmap') ? {background:'#6B9B2D', color:'white'} : {color:'rgba(255,255,255,0.8)'}}
+            >
+              <div className="flex items-center gap-3">
+                <Map className="w-5 h-5" />
+                Roadmap
+              </div>
+              <span className="sidebar-new-badge">NEW</span>
+            </Link>
+          )}
+
+          {/* Gestion des tâches — only visible when a project is selected (edit page or tasks page active) */}
+          {currentProjectId && (
+            <Link
+              to={`/projects/edit/${currentProjectId}/tasks`}
+              className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all font-medium text-sm ${
+                location.pathname === `/projects/edit/${currentProjectId}/tasks` ? 'font-semibold' : 'hover:bg-white/10'
+              }`}
+              style={location.pathname === `/projects/edit/${currentProjectId}/tasks` ? {background:'#6B9B2D', color:'white'} : {color:'rgba(255,255,255,0.8)'}}
+            >
+              <div className="flex items-center gap-3">
+                <ClipboardList className="w-5 h-5" />
+                Gestion des tâches
+              </div>
+            </Link>
+          )}
+
+          {/* Simulateur Budgétaire — PMO + Chef de Projet */}
+          {(isPMO || isChefProjet) && (
+            <Link
+              to="/budget-simulator"
+              className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all font-medium text-sm ${
+                isActive('/budget-simulator') ? 'font-semibold' : 'hover:bg-white/10'
+              }`}
+              style={isActive('/budget-simulator') ? {background:'#6B9B2D', color:'white'} : {color:'rgba(255,255,255,0.8)'}}
+            >
+              <div className="flex items-center gap-3">
+                <DollarSign className="w-5 h-5" />
+                Simulateur
+              </div>
+            </Link>
+          )}
+
+          {/* Mode COPIL — PMO */}
+          {isPMO && (
+            <Link
+              to="/copil"
+              className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all font-medium text-sm ${
+                isActive('/copil') ? 'font-semibold' : 'hover:bg-white/10'
+              }`}
+              style={isActive('/copil') ? {background:'#6B9B2D', color:'white'} : {color:'rgba(255,255,255,0.8)'}}
+            >
+              <div className="flex items-center gap-3">
+                <Presentation className="w-5 h-5" />
+                Mode COPIL
+              </div>
+            </Link>
+          )}
+
+          {/* Validations — PMO + Admin */}
+          {(isPMO || isAdmin) && (
+            <Link
+              to="/validations"
+              className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all font-medium text-sm ${
+                isActive('/validations') ? 'font-semibold' : 'hover:bg-white/10'
+              }`}
+              style={isActive('/validations') ? {background:'#6B9B2D', color:'white'} : {color:'rgba(255,255,255,0.8)'}}
+            >
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="w-5 h-5" />
+                Validations
+              </div>
+            </Link>
+          )}
+
           {/* Ressources & Accès — Admin uniquement */}
           {isAdmin && (
             <Link
@@ -141,7 +257,7 @@ const MainLayout = () => {
               style={isActive('/users') ? {background:'#6B9B2D', color:'white'} : {color:'rgba(255,255,255,0.8)'}}
             >
               <Users className="w-5 h-5" />
-              Ressources &amp; Accès
+              Ressources & Accès
             </Link>
           )}
 
@@ -176,21 +292,50 @@ const MainLayout = () => {
       {/* Zone de contenu principal */}
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm shrink-0">
-          {/* Fil d'Ariane / Titre page */}
+          {/* Fil d'Ariane */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-widest" style={{color:'#2D4A5C'}}>CDG</span>
             <span className="text-slate-300">/</span>
             <span className="text-sm font-semibold text-slate-600">Référentiel SI</span>
           </div>
 
-          {/* Info utilisateur */}
-          <div className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 px-3 py-1.5 rounded-xl transition-colors border border-transparent hover:border-slate-200">
-            <div className="flex flex-col text-right">
-              <span className="text-sm font-semibold text-slate-700">{fullName}</span>
-              <span className="text-xs font-medium" style={{color:'#6B9B2D'}}>{roleLabel}</span>
+          <div className="flex items-center gap-3">
+            {/* Cloche notifications */}
+            <div ref={bellRef} className="relative" style={{color:'#2D4A5C'}}>
+              <button
+                id="notification-bell-btn"
+                onClick={() => { setNotifOpen(!notifOpen); }}
+                className="relative w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:bg-slate-100 border border-slate-200"
+                title="Notifications"
+              >
+                <Bell className="w-5 h-5" style={{color:'#2D4A5C'}} />
+                {unreadCount > 0 && (
+                  <span className="bell-badge" style={{borderColor:'white'}}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {notifOpen && (
+                <NotificationPanel
+                  isOpen={notifOpen}
+                  onClose={() => setNotifOpen(false)}
+                  userId={userInfo?.sub || userInfo?.id}
+                  onRead={() => setUnreadCount(prev => Math.max(0, prev - 1))}
+                  onReadAll={() => setUnreadCount(0)}
+                />
+              )}
             </div>
-            <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm text-white" style={{background:'#2D4A5C'}}>
-              {initiales}
+
+            {/* Info utilisateur */}
+            <div className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 px-3 py-1.5 rounded-xl transition-colors border border-transparent hover:border-slate-200">
+              <div className="flex flex-col text-right">
+                <span className="text-sm font-semibold text-slate-700">{fullName}</span>
+                <span className="text-xs font-medium" style={{color:'#6B9B2D'}}>{roleLabel}</span>
+              </div>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm text-white" style={{background:'#2D4A5C'}}>
+                {initiales}
+              </div>
             </div>
           </div>
         </header>

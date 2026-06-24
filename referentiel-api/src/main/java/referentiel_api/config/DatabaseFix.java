@@ -17,6 +17,7 @@ public class DatabaseFix {
     @PostConstruct
     public void init() {
         dropEnumConstraint();
+        migrateTotpColumns();
         ensureAdminExists();
     }
 
@@ -30,6 +31,24 @@ public class DatabaseFix {
             System.out.println("✅ Constraint utilisateurs_role_check dropped (or did not exist).");
         } catch (Exception e) {
             System.out.println("❌ Could not drop constraint: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Ajoute les colonnes TOTP si elles n'existent pas encore (migration idempotente).
+     * Nécessaire lors du premier démarrage après l'introduction du 2FA TOTP.
+     */
+    private void migrateTotpColumns() {
+        try {
+            jdbcTemplate.execute(
+                "ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(255)"
+            );
+            jdbcTemplate.execute(
+                "ALTER TABLE utilisateurs ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT FALSE"
+            );
+            System.out.println("✅ Colonnes TOTP vérifiées/ajoutées (totp_secret, totp_enabled).");
+        } catch (Exception e) {
+            System.out.println("⚠️ Migration TOTP : " + e.getMessage());
         }
     }
 
@@ -49,8 +68,8 @@ public class DatabaseFix {
             if (count == null || count == 0) {
                 // Insertion de l'admin s'il n'existe pas
                 jdbcTemplate.update(
-                    "INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, role) VALUES (?, ?, ?, ?, ?)",
-                    "Administrateur", "CDG", ADMIN_EMAIL.toLowerCase(), "keycloak-managed", "ADMIN"
+                    "INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, role, totp_enabled) VALUES (?, ?, ?, ?, ?, ?)",
+                    "Administrateur", "CDG", ADMIN_EMAIL.toLowerCase(), "keycloak-managed", "ADMIN", false
                 );
                 System.out.println("✅ Compte admin créé automatiquement pour : " + ADMIN_EMAIL);
             } else {

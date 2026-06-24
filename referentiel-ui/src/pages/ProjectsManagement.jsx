@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FolderPlus, Pencil, Trash2, Calendar, DollarSign, Activity, AlertCircle, Search, Filter, UserPlus, CheckCircle, FileDown } from 'lucide-react';
+import { FolderPlus, Pencil, Trash2, Calendar, DollarSign, Activity, AlertCircle, Search, Filter, UserPlus, CheckCircle, FileDown, Tag } from 'lucide-react';
 import api from '../api/axios';
 import { useKeycloak } from '../KeycloakProvider';
+import MaturityScoreBar from '../components/MaturityScoreBar';
 
 const ProjectsManagement = () => {
   const [showModal, setShowModal] = useState(false);
@@ -21,6 +22,7 @@ const ProjectsManagement = () => {
   const isAdmin = currentRole === 'ADMIN';
   const isPmo = currentRole === 'PMO';
   const isChefProjet = currentRole === 'CHEF_PROJET';
+  const isMembre = currentRole === 'MEMBRE';
 
   // Chef de Projet peut éditer uniquement les projets qui lui sont assignés
   // PMO peut éditer tous les projets
@@ -28,7 +30,7 @@ const ProjectsManagement = () => {
     if (isAdmin || isPmo) return true;
     if (isChefProjet) {
       // Comparaison insensible à la casse
-      return projet.chefDeProjet?.email?.toLowerCase() === currentEmail?.toLowerCase();
+      return projet.chefDeProjet?.some(u => u.email?.toLowerCase() === currentEmail?.toLowerCase());
     }
     return false;
   };
@@ -51,7 +53,7 @@ const ProjectsManagement = () => {
   // Modal d'assignation rapide
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignProject, setAssignProject] = useState(null);
-  const [selectedChefId, setSelectedChefId] = useState('');
+  const [selectedChefIds, setSelectedChefIds] = useState([]);
   const [searchAssignText, setSearchAssignText] = useState('');
 
   // Widget Temps Restant
@@ -165,6 +167,35 @@ const ProjectsManagement = () => {
     }
   };
 
+  const handleAddMember = async (projet, memberId) => {
+    try {
+      const selectedUser = utilisateurs.find(u => u.id === memberId);
+      if (!selectedUser) return;
+      
+      const updatedMembres = [...(projet.membres || []), selectedUser];
+      const updatedProject = { ...projet, membres: updatedMembres };
+      
+      await api.put(`/projets/${projet.id}`, updatedProject);
+      setProjets(projets.map(p => p.id === projet.id ? updatedProject : p));
+    } catch (err) {
+      console.error("Erreur d'ajout de membre", err);
+      alert("Impossible d'ajouter le membre.");
+    }
+  };
+
+  const handleRemoveMember = async (projet, memberId) => {
+    try {
+      const updatedMembres = (projet.membres || []).filter(m => m.id !== memberId);
+      const updatedProject = { ...projet, membres: updatedMembres };
+      
+      await api.put(`/projets/${projet.id}`, updatedProject);
+      setProjets(projets.map(p => p.id === projet.id ? updatedProject : p));
+    } catch (err) {
+      console.error("Erreur de suppression de membre", err);
+      alert("Impossible de retirer le membre.");
+    }
+  };
+
   const handleCreateProject = async (e) => {
     e.preventDefault();
     try {
@@ -177,7 +208,7 @@ const ProjectsManagement = () => {
         etatSante: 'Vert',
         statut: 'En attente',
         phaseCourante: 'Cadrage / Pré-Etude',
-        chefDeProjet: newProjet.chefDeProjetId ? { id: newProjet.chefDeProjetId } : null
+        chefDeProjet: newProjet.chefDeProjetId ? [{ id: newProjet.chefDeProjetId }] : []
       };
       const response = await api.post('/projets', payload);
       setProjets([...projets, response.data]);
@@ -190,9 +221,18 @@ const ProjectsManagement = () => {
 
   const openAssignModal = (projet) => {
     setAssignProject(projet);
-    setSelectedChefId(projet.chefDeProjet?.id || '');
+    const initialIds = projet.chefDeProjet ? projet.chefDeProjet.map(u => u.id) : [];
+    setSelectedChefIds(initialIds);
     setSearchAssignText('');
     setShowAssignModal(true);
+  };
+
+  const toggleChefSelection = (id) => {
+    if (selectedChefIds.includes(id)) {
+      setSelectedChefIds(selectedChefIds.filter(x => x !== id));
+    } else {
+      setSelectedChefIds([...selectedChefIds, id]);
+    }
   };
 
   const handleAssignProject = async (e) => {
@@ -201,11 +241,7 @@ const ProjectsManagement = () => {
     try {
       const res = await api.get(`/projets/${assignProject.id}`);
       const payload = res.data;
-      if (selectedChefId) {
-        payload.chefDeProjet = { id: selectedChefId };
-      } else {
-        payload.chefDeProjet = null;
-      }
+      payload.chefDeProjet = selectedChefIds.map(id => ({ id }));
       const response = await api.put(`/projets/${assignProject.id}`, payload);
       setProjets(projets.map(p => p.id === assignProject.id ? response.data : p));
       setShowAssignModal(false);
@@ -221,7 +257,14 @@ const ProjectsManagement = () => {
   // 1. Chef de Projet ne voit QUE ses projets assignés
   if (isChefProjet && currentEmail) {
     projetsFiltres = projetsFiltres.filter(
-      p => p.chefDeProjet?.email?.toLowerCase() === currentEmail.toLowerCase()
+      p => p.chefDeProjet?.some(u => u.email?.toLowerCase() === currentEmail.toLowerCase())
+    );
+  }
+
+  // 1b. Membre ne voit QUE les projets dont il fait partie de l'équipe
+  if (isMembre && currentEmail) {
+    projetsFiltres = projetsFiltres.filter(
+      p => p.membres?.some(m => m.email?.toLowerCase() === currentEmail.toLowerCase())
     );
   }
 
@@ -230,7 +273,7 @@ const ProjectsManagement = () => {
 
   // 3. Filtre par utilisateur ciblé (pour l'admin uniquement)
   if (isAdmin && filterUser !== '') {
-    projetsFiltres = projetsFiltres.filter(p => p.chefDeProjet?.id.toString() === filterUser);
+    projetsFiltres = projetsFiltres.filter(p => p.chefDeProjet?.some(u => u.id.toString() === filterUser));
   }
 
   // 3. Barre de recherche
@@ -330,7 +373,7 @@ const ProjectsManagement = () => {
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
             <FolderPlus className="w-8 h-8 text-primary-600" />
-            {isAdmin ? "Tous les Projets" : isChefProjet ? "Mes Projets Assignés" : "Supervision des Projets"}
+            {isAdmin ? "Tous les Projets" : isChefProjet ? "Mes Projets Assignés" : isMembre ? "Mes Projets en tant que Membre" : "Supervision des Projets"}
           </h2>
           <p className="text-slate-500 mt-1">Supervisez et mettez à jour l'état des projets</p>
         </div>
@@ -376,6 +419,8 @@ const ProjectsManagement = () => {
           <p className="text-slate-500 mt-2 max-w-sm">
             {isChefProjet
               ? "Vous n'avez pas encore de projet assigné dans votre portefeuille."
+              : isMembre
+              ? "Vous n'êtes membre d'aucun projet actif pour le moment."
               : "Vous n'avez pas encore de projet dans votre portefeuille. Cliquez sur \"Nouveau projet\" pour commencer."}
           </p>
         </div>
@@ -388,17 +433,40 @@ const ProjectsManagement = () => {
               className={`bg-white rounded-xl shadow-sm border p-6 hover:shadow-md transition-all cursor-pointer ${selectedProjectForTimer?.id === projet.id ? 'ring-2 ring-primary-500 border-primary-500' : 'border-slate-200'}`}
             >
               <div className="flex justify-between items-start mb-4">
-                <div>
+                <div className="flex-1 min-w-0 mr-3">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-bold text-slate-400 tracking-wider bg-slate-100 px-2 py-0.5 rounded">{projet.code}</span>
                     <span className="text-xs text-primary-600 font-medium">{projet.type || 'Non spécifié'}</span>
                   </div>
                   <h3 className="text-xl font-bold text-slate-800">{projet.nom}</h3>
                   <p className="text-sm text-slate-500 mt-1">
-                    Assigné à : <span className={`font-semibold ${projet.chefDeProjet ? 'text-green-600' : 'text-orange-500'}`}>{projet.chefDeProjet ? `${projet.chefDeProjet.prenom} ${projet.chefDeProjet.nom}` : 'Non assigné'}</span>
+                    Assigné à : <span className={`font-semibold ${projet.chefDeProjet && projet.chefDeProjet.length > 0 ? 'text-green-600' : 'text-orange-500'}`}>
+                      {projet.chefDeProjet && projet.chefDeProjet.length > 0 
+                        ? projet.chefDeProjet.map(u => `${u.prenom} ${u.nom}`).join(', ') 
+                        : 'Non assigné'}
+                    </span>
                   </p>
+                  {/* Tags */}
+                  {projet.tags && projet.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {projet.tags.map(tag => (
+                        <span
+                          key={tag.id}
+                          className="tag-badge"
+                          style={{
+                            background: tag.color ? `${tag.color}22` : '#f1f5f9',
+                            color: tag.color || '#64748b',
+                            borderColor: tag.color ? `${tag.color}44` : '#e2e8f0',
+                          }}
+                        >
+                          <Tag style={{ width:9, height:9 }} />
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${projet.etatSante === 'Vert' ? 'bg-green-100 text-green-700' : projet.etatSante === 'Orange' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${projet.etatSante === 'Vert' ? 'bg-green-100 text-green-700' : projet.etatSante === 'Orange' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>
                   Météo: {projet.etatSante}
                 </span>
               </div>
@@ -418,6 +486,60 @@ const ProjectsManagement = () => {
                     <p className="text-sm font-semibold">{projet.budgetConsomme} / {projet.budgetInitial} MAD</p>
                   </div>
                 </div>
+              </div>
+
+              {/* Membres de l'équipe du projet */}
+              <div className="mt-4 mb-5 border-t border-slate-100 pt-4" onClick={(e) => e.stopPropagation()}>
+                <p className="text-xs font-semibold text-slate-400 uppercase mb-2">Membres de l'équipe</p>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {projet.membres && projet.membres.map((m) => (
+                    <span key={m.id} className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 text-xs font-medium px-2.5 py-1 rounded-full border border-slate-200">
+                      {m.prenom} {m.nom}
+                      {canEdit(projet) && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleRemoveMember(projet, m.id);
+                          }}
+                          className="hover:text-red-500 font-bold transition-colors text-[10px] w-3 h-3 flex items-center justify-center rounded-full hover:bg-slate-200"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                  {(!projet.membres || projet.membres.length === 0) && (
+                    <span className="text-xs text-slate-400 italic">Aucun membre affecté</span>
+                  )}
+                  
+                  {/* Sélecteur d'ajout de membre - visible si l'utilisateur a les droits d'édition */}
+                  {canEdit(projet) && (
+                    <div className="relative inline-block ml-2">
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            handleAddMember(projet, Number(e.target.value));
+                          }
+                        }}
+                        className="text-xs bg-slate-50 text-slate-600 border border-slate-200 rounded-full px-2.5 py-1 outline-none cursor-pointer hover:bg-slate-100 transition-all font-semibold"
+                      >
+                        <option value="">+ Ajouter un membre</option>
+                        {utilisateurs
+                          .filter(u => u.role === 'MEMBRE' && !projet.membres?.some(m => m.id === u.id)) // exclure les membres déjà présents
+                          .map(u => (
+                            <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Maturity score bar */}
+              <div className="mt-3 pt-3 border-t border-slate-100">
+                <MaturityScoreBar score={projet.maturityScore || 0} size="md" />
               </div>
 
               <div className="flex justify-between items-center pt-4 border-t border-slate-100">
@@ -511,19 +633,19 @@ const ProjectsManagement = () => {
 
                 {/* Option 1 : Retirer l'assignation / Mettre en attente */}
                 <div
-                  onClick={() => setSelectedChefId('')}
-                  className={`p-3 border rounded-xl cursor-pointer transition-all flex items-center justify-between ${selectedChefId === '' ? 'border-orange-500 bg-orange-50 ring-1 ring-orange-500' : 'border-slate-200 hover:border-orange-300 hover:bg-slate-50'}`}
+                  onClick={() => setSelectedChefIds([])}
+                  className={`p-3 border rounded-xl cursor-pointer transition-all flex items-center justify-between ${selectedChefIds.length === 0 ? 'border-orange-500 bg-orange-50 ring-1 ring-orange-500' : 'border-slate-200 hover:border-orange-300 hover:bg-slate-50'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${selectedChefId === '' ? 'bg-orange-100' : 'bg-slate-100'}`}>
-                      <AlertCircle className={`w-4 h-4 ${selectedChefId === '' ? 'text-orange-600' : 'text-slate-400'}`} />
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${selectedChefIds.length === 0 ? 'bg-orange-100' : 'bg-slate-100'}`}>
+                      <AlertCircle className={`w-4 h-4 ${selectedChefIds.length === 0 ? 'text-orange-600' : 'text-slate-400'}`} />
                     </div>
                     <div>
-                      <p className={`font-semibold text-sm ${selectedChefId === '' ? 'text-orange-700' : 'text-slate-700'}`}>Non assigné</p>
+                      <p className={`font-semibold text-sm ${selectedChefIds.length === 0 ? 'text-orange-700' : 'text-slate-700'}`}>Non assigné</p>
                       <p className="text-xs text-slate-500">Mettre le projet en attente</p>
                     </div>
                   </div>
-                  {selectedChefId === '' && <CheckCircle className="w-5 h-5 text-orange-500" />}
+                  {selectedChefIds.length === 0 && <CheckCircle className="w-5 h-5 text-orange-500" />}
                 </div>
 
                 {/* Search Bar */}
@@ -545,11 +667,11 @@ const ProjectsManagement = () => {
                   .filter(u => u.role === 'CHEF_PROJET' || u.role === 'PMO')
                   .filter(u => `${u.prenom} ${u.nom}`.toLowerCase().includes(searchAssignText.toLowerCase()))
                   .map(u => {
-                    const isSelected = selectedChefId === String(u.id) || selectedChefId === u.id;
+                    const isSelected = selectedChefIds.includes(u.id);
                     return (
                       <div
                         key={u.id}
-                        onClick={() => setSelectedChefId(u.id)}
+                        onClick={() => toggleChefSelection(u.id)}
                         className={`p-3 border rounded-xl cursor-pointer transition-all flex items-center justify-between ${isSelected ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' : 'border-slate-200 hover:border-primary-300 hover:bg-slate-50'}`}
                       >
                         <div className="flex items-center gap-3">
@@ -558,7 +680,25 @@ const ProjectsManagement = () => {
                           </div>
                           <div>
                             <p className={`font-semibold text-sm ${isSelected ? 'text-primary-800' : 'text-slate-800'}`}>{u.prenom} {u.nom}</p>
-                            <p className="text-xs text-slate-500">{u.role ? u.role.replace('ROLE_', '') : ''}</p>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                              <span className="text-xs text-slate-500">
+                                {u.role === 'CHEF_PROJET' ? 'Chef de projet' : (u.role ? u.role.replace('ROLE_', '') : '')}
+                              </span>
+                              {u.referentiels
+                                ?.filter(r => r.categorie === 'DIRECTION_METIER')
+                                .map(r => (
+                                  <span
+                                    key={r.id}
+                                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+                                      isSelected
+                                        ? 'bg-primary-100/50 text-primary-700 border-primary-200'
+                                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                                    }`}
+                                  >
+                                    {r.libelle}
+                                  </span>
+                                ))}
+                            </div>
                           </div>
                         </div>
                         {isSelected && <CheckCircle className="w-5 h-5 text-primary-600" />}

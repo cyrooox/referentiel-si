@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Data
@@ -52,11 +53,21 @@ public class Projet {
     @Column(columnDefinition = "TEXT")
     private String commentairesSuivi;
 
-    @ManyToOne
-    @JoinColumn(name = "utilisateur_id")
-    private Utilisateur chefDeProjet;
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "projet_chefs_de_projet",
+        joinColumns = @JoinColumn(name = "projet_id"),
+        inverseJoinColumns = @JoinColumn(name = "utilisateur_id")
+    )
+    private List<Utilisateur> chefDeProjet;
 
     private String nomChefDeProjet; // Champ texte libre
+
+    @Column(columnDefinition = "TEXT")
+    private String ocrText;
+
+    @Column(columnDefinition = "TEXT")
+    private String todoList;
 
     @OneToMany(mappedBy = "projet", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<SousPhase> sousPhases;
@@ -78,4 +89,24 @@ public class Projet {
 
     @OneToMany(mappedBy = "projet", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<Copil> copilInstances;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "projet_membres",
+        joinColumns = @JoinColumn(name = "projet_id"),
+        inverseJoinColumns = @JoinColumn(name = "utilisateur_id")
+    )
+    private List<Utilisateur> membres;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "projet_tags",
+        joinColumns = @JoinColumn(name = "projet_id"),
+        inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private List<ProjectTag> tags;
+
+    // Score de maturité calculé (0-100)
+    @Transient
+    private Integer maturityScore;
 }

@@ -61,37 +61,29 @@ public class RapportService {
         ajouterCouverture(doc, projet, role);
         doc.newPage();
 
-        // ══ SECTION 1 : Informations Générales ══
-        ajouterSectionInfosGenerales(doc, projet);
+        int secNum = 1;
 
-        // ══ SECTION 2 : Phases & Livrables ══
+        // ══ SECTION : Informations Générales ══
+        ajouterSectionInfosGenerales(doc, projet, role, secNum++);
+
+        // ══ SECTION : Phases & Livrables ══
         if (projet.getSousPhases() != null && !projet.getSousPhases().isEmpty()) {
-            ajouterSectionPhases(doc, projet.getSousPhases());
+            ajouterSectionPhases(doc, projet.getSousPhases(), secNum++);
         }
 
-        // ══ SECTION 3 : Risques ══
-        if (projet.getRisques() != null && !projet.getRisques().isEmpty()) {
-            ajouterSectionRisques(doc, projet.getRisques());
-        }
-
-        // ══ SECTION 4 : Actions ══
-        if (projet.getActions() != null && !projet.getActions().isEmpty()) {
-            ajouterSectionActions(doc, projet.getActions());
-        }
-
-        // ══ SECTIONS PMO UNIQUEMENT (supervise tout, accès complet) ══
+        // ══ SECTIONS PMO UNIQUEMENT (Confidentiel) ══
         if ("PMO".equalsIgnoreCase(role)) {
-
-            // SECTION 5 : Contrats & Prestataires
+            // SECTION : Contrats & Prestataires
             if (projet.getContrats() != null && !projet.getContrats().isEmpty()) {
-                ajouterSectionContrats(doc, projet.getContrats());
+                ajouterSectionContrats(doc, projet.getContrats(), secNum++);
             }
 
-            // SECTION 6 : Échéancier de paiement
-            if (projet.getEcheancesPaiement() != null && !projet.getEcheancesPaiement().isEmpty()) {
-                ajouterSectionEcheances(doc, projet.getEcheancesPaiement(), projet.getBudgetInitial());
-            }
+            // SECTION : Budget & Finances
+            ajouterSectionBudgetFinances(doc, projet, secNum++);
         }
+
+        // ══ SECTION : Suivi et Indicateurs (Pour tous) ══
+        ajouterSectionSuiviIndicateurs(doc, projet, secNum++);
 
         doc.close();
         return baos.toByteArray();
@@ -153,7 +145,7 @@ public class RapportService {
 
         ajouterLigneMeta(meta, "Statut", safe(projet.getStatut()));
         ajouterLigneMeta(meta, "Phase courante", safe(projet.getPhaseCourante()));
-        ajouterLigneMeta(meta, "Chef de projet", safe(projet.getNomChefDeProjet()));
+        ajouterLigneMeta(meta, "Chef de projet", getChefDeProjetNames(projet));
         ajouterLigneMeta(meta, "Direction métier", safe(projet.getDirectionMetier()));
         ajouterLigneMeta(meta, "Date de génération", SDF.format(new Date()));
         doc.add(meta);
@@ -181,8 +173,8 @@ public class RapportService {
     // ══════════════════════════════════════════════════════
     // SECTION 1 – INFORMATIONS GÉNÉRALES
     // ══════════════════════════════════════════════════════
-    private void ajouterSectionInfosGenerales(Document doc, Projet projet) throws Exception {
-        doc.add(creerTitreSectionElement("1. Informations Générales"));
+    private void ajouterSectionInfosGenerales(Document doc, Projet projet, String role, int secNum) throws Exception {
+        doc.add(creerTitreSectionElement(secNum + ". Informations Générales"));
 
         PdfPTable table = new PdfPTable(4);
         table.setWidthPercentage(100);
@@ -196,17 +188,14 @@ public class RapportService {
             "Type", safe(projet.getType()),
             "Phase courante", safe(projet.getPhaseCourante()));
         ajouterLigneInfo4Cols(table,
-            "Chef de projet", safe(projet.getNomChefDeProjet()),
+            "Chef de projet", getChefDeProjetNames(projet),
             "Direction métier", safe(projet.getDirectionMetier()));
         ajouterLigneInfo4Cols(table,
             "Début prévu", formatDate(projet.getDateDebutPrevue()),
             "Fin prévue", formatDate(projet.getDateFinPrevue()));
         ajouterLigneInfo4Cols(table,
             "Fin réelle", formatDate(projet.getDateReelleFin()),
-            "Avancement", (projet.getTauxAvancement() != null ? projet.getTauxAvancement() + " %" : "N/A"));
-        ajouterLigneInfo4Cols(table,
-            "Budget initial", formatMontant(projet.getBudgetInitial()) + " MAD",
-            "Budget consommé", formatMontant(projet.getBudgetConsomme()) + " MAD");
+            "Date Création", formatDate(projet.getDateCreation()));
 
         doc.add(table);
 
@@ -220,24 +209,14 @@ public class RapportService {
             doc.add(desc);
         }
 
-        // Commentaires suivi
-        if (projet.getCommentairesSuivi() != null && !projet.getCommentairesSuivi().isBlank()) {
-            doc.add(new Paragraph("\n"));
-            Paragraph labelComm = new Paragraph("Commentaires de suivi :", FONT_LABEL);
-            doc.add(labelComm);
-            Paragraph comm = new Paragraph(projet.getCommentairesSuivi(), FONT_VALEUR);
-            comm.setIndentationLeft(10);
-            doc.add(comm);
-        }
-
         doc.add(new Paragraph("\n"));
     }
 
     // ══════════════════════════════════════════════════════
     // SECTION 2 – PHASES & LIVRABLES
     // ══════════════════════════════════════════════════════
-    private void ajouterSectionPhases(Document doc, List<SousPhase> phases) throws Exception {
-        doc.add(creerTitreSectionElement("2. Phases & Livrables"));
+    private void ajouterSectionPhases(Document doc, List<SousPhase> phases, int secNum) throws Exception {
+        doc.add(creerTitreSectionElement(secNum + ". Phases & Livrables"));
 
         for (SousPhase phase : phases) {
             // En-tête de phase
@@ -284,70 +263,116 @@ public class RapportService {
     }
 
     // ══════════════════════════════════════════════════════
-    // SECTION 3 – RISQUES
+    // BUDGET & FINANCES (PMO uniquement : accès complet)
     // ══════════════════════════════════════════════════════
-    private void ajouterSectionRisques(Document doc, List<Risque> risques) throws Exception {
-        doc.add(creerTitreSectionElement("3. Registre des Risques"));
+    private void ajouterSectionBudgetFinances(Document doc, Projet projet, int secNum) throws Exception {
+        doc.add(creerTitreSectionElement(secNum + ". Budget & Finances (Confidentiel PMO)"));
 
-        PdfPTable table = new PdfPTable(3);
-        table.setWidthPercentage(100);
-        table.setWidths(new float[]{55, 20, 25});
-        table.setSpacingBefore(6);
+        // Table récapitulative (3 colonnes)
+        PdfPTable gridTable = new PdfPTable(3);
+        gridTable.setWidthPercentage(100);
+        gridTable.setWidths(new float[]{33.33f, 33.33f, 33.33f});
+        gridTable.setSpacingBefore(8);
+        gridTable.setSpacingAfter(12);
 
-        ajouterEnTeteTable(table, "Description", "Impact", "Responsable");
+        Double initial = projet.getBudgetInitial() != null ? projet.getBudgetInitial() : 0.0;
+        Double consomme = projet.getBudgetConsomme() != null ? projet.getBudgetConsomme() : 0.0;
+        Double delta = initial - consomme;
 
-        int row = 0;
-        for (Risque r : risques) {
-            Color bg = (row++ % 2 == 0) ? COULEUR_LIGNE_PAIR : COULEUR_LIGNE_IMPAIR;
-            ajouterCellule(table, safe(r.getDescription()), bg, Element.ALIGN_LEFT);
+        // Cellule 1: Budget Initial
+        PdfPCell cellInit = new PdfPCell();
+        cellInit.setBorderColor(new Color(220, 225, 235));
+        cellInit.setPadding(8);
+        cellInit.setBackgroundColor(COULEUR_EN_TETE);
+        cellInit.addElement(new Paragraph("Budget Initial Prévu", FONT_LABEL));
+        Paragraph pInit = new Paragraph(formatMontant(initial) + " MAD", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.BLACK));
+        pInit.setSpacingBefore(4);
+        cellInit.addElement(pInit);
+        gridTable.addCell(cellInit);
 
-            // Couleur de l'impact
-            String impact = safe(r.getImpact());
-            Color impactColor = "Fort".equalsIgnoreCase(impact) ? COULEUR_ROUGE
-                              : "Moyen".equalsIgnoreCase(impact) ? COULEUR_ORANGE : COULEUR_VERT;
-            PdfPCell cellImpact = new PdfPCell(new Phrase(impact,
-                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, impactColor)));
-            cellImpact.setBackgroundColor(bg);
-            cellImpact.setPadding(5);
-            cellImpact.setHorizontalAlignment(Element.ALIGN_CENTER);
-            table.addCell(cellImpact);
+        // Cellule 2: Budget Consommé
+        PdfPCell cellCons = new PdfPCell();
+        cellCons.setBorderColor(new Color(220, 225, 235));
+        cellCons.setPadding(8);
+        cellCons.setBackgroundColor(COULEUR_EN_TETE);
+        cellCons.addElement(new Paragraph("Budget Consommé à date", FONT_LABEL));
+        Paragraph pCons = new Paragraph(formatMontant(consomme) + " MAD", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, COULEUR_ORANGE));
+        pCons.setSpacingBefore(4);
+        cellCons.addElement(pCons);
+        gridTable.addCell(cellCons);
 
-            ajouterCellule(table, safe(r.getResponsable()), bg, Element.ALIGN_LEFT);
+        // Cellule 3: Budget Restant (Delta)
+        PdfPCell cellDelta = new PdfPCell();
+        cellDelta.setBorderColor(new Color(220, 225, 235));
+        cellDelta.setPadding(8);
+        cellDelta.setBackgroundColor(COULEUR_EN_TETE);
+        cellDelta.addElement(new Paragraph("Budget Restant (Delta)", FONT_LABEL));
+        Color colDelta = delta < 0 ? COULEUR_ROUGE : COULEUR_VERT;
+        Paragraph pDelta = new Paragraph(formatMontant(delta) + " MAD", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, colDelta));
+        pDelta.setSpacingBefore(4);
+        cellDelta.addElement(pDelta);
+        gridTable.addCell(cellDelta);
+
+        doc.add(gridTable);
+
+        // Échéancier de paiements
+        if (projet.getEcheancesPaiement() != null && !projet.getEcheancesPaiement().isEmpty()) {
+            Paragraph titreEch = new Paragraph("Échéancier de paiements :", FONT_LABEL);
+            titreEch.setSpacingAfter(4);
+            doc.add(titreEch);
+
+            PdfPTable tableEch = new PdfPTable(5);
+            tableEch.setWidthPercentage(100);
+            tableEch.setWidths(new float[]{20, 18, 25, 25, 12});
+            
+            ajouterEnTeteTable(tableEch, "Montant", "Date d'échéance", "Conditionné par", "Élément lié", "Statut");
+
+            int row = 0;
+            for (EcheancePaiement e : projet.getEcheancesPaiement()) {
+                Color bg = (row++ % 2 == 0) ? COULEUR_LIGNE_PAIR : COULEUR_LIGNE_IMPAIR;
+                
+                // Montant
+                ajouterCellule(tableEch, formatMontant(e.getMontant()) + " MAD", bg, Element.ALIGN_RIGHT);
+                // Date
+                ajouterCellule(tableEch, formatDate(e.getDateEcheance()), bg, Element.ALIGN_CENTER);
+
+                // Conditionné par & Élément lié
+                String cond = "Aucun (Lié au projet)";
+                String lie = "—";
+                if (e.getSousPhase() != null) {
+                    cond = "Validation d'une Phase";
+                    lie = safe(e.getSousPhase().getNomPhase());
+                } else if (e.getLivrable() != null) {
+                    cond = "Remise d'un Livrable";
+                    lie = safe(e.getLivrable().getNom());
+                }
+                ajouterCellule(tableEch, cond, bg, Element.ALIGN_LEFT);
+                ajouterCellule(tableEch, lie, bg, Element.ALIGN_LEFT);
+
+                // Statut
+                boolean paye = Boolean.TRUE.equals(e.getEstPaye());
+                PdfPCell cellPaye = new PdfPCell(new Phrase(paye ? "Payé" : "Non Payé",
+                        FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, paye ? COULEUR_VERT : COULEUR_ORANGE)));
+                cellPaye.setBackgroundColor(bg);
+                cellPaye.setPadding(5);
+                cellPaye.setBorderColor(new Color(220, 225, 235));
+                cellPaye.setHorizontalAlignment(Element.ALIGN_CENTER);
+                tableEch.addCell(cellPaye);
+            }
+            doc.add(tableEch);
+        } else {
+            Paragraph aucunEch = new Paragraph("Aucun échéancier de paiement défini.", FONT_VALEUR);
+            aucunEch.setIndentationLeft(10);
+            doc.add(aucunEch);
         }
-
-        doc.add(table);
         doc.add(new Paragraph("\n"));
     }
 
     // ══════════════════════════════════════════════════════
-    // SECTION 4 – ACTIONS
+    // CONTRATS (PMO uniquement : accès complet)
     // ══════════════════════════════════════════════════════
-    private void ajouterSectionActions(Document doc, List<Action> actions) throws Exception {
-        doc.add(creerTitreSectionElement("4. Plan d'Actions"));
-
-        PdfPTable table = new PdfPTable(2);
-        table.setWidthPercentage(100);
-        table.setWidths(new float[]{75, 25});
-        table.setSpacingBefore(6);
-
-        ajouterEnTeteTable(table, "Description de l'action", "Statut");
-
-        int row = 0;
-        for (Action a : actions) {
-            Color bg = (row++ % 2 == 0) ? COULEUR_LIGNE_PAIR : COULEUR_LIGNE_IMPAIR;
-            ajouterCellule(table, safe(a.getDescription()), bg, Element.ALIGN_LEFT);
-            ajouterCellule(table, safe(a.getStatut()), bg, Element.ALIGN_CENTER);
-        }
-
-        doc.add(table);
-        doc.add(new Paragraph("\n"));
-    }
-
-    // ══════════════════════════════════════════════════════
-    // SECTION 5 – CONTRATS (PMO uniquement : accès complet)
-    // ══════════════════════════════════════════════════════
-    private void ajouterSectionContrats(Document doc, List<Contrat> contrats) throws Exception {
-        doc.add(creerTitreSectionElement("5. Contrats & Prestataires (Confidentiel PMO)"));
+    private void ajouterSectionContrats(Document doc, List<Contrat> contrats, int secNum) throws Exception {
+        doc.add(creerTitreSectionElement(secNum + ". Contrats & Prestataires (Confidentiel PMO)"));
 
         PdfPTable table = new PdfPTable(4);
         table.setWidthPercentage(100);
@@ -370,51 +395,125 @@ public class RapportService {
     }
 
     // ══════════════════════════════════════════════════════
-    // SECTION 6 – ÉCHÉANCIER (PMO uniquement : accès complet)
+    // SUIVI ET INDICATEURS (Pour tous)
     // ══════════════════════════════════════════════════════
-    private void ajouterSectionEcheances(Document doc, List<EcheancePaiement> echeances, Double budgetInitial) throws Exception {
-        doc.add(creerTitreSectionElement("6. Échéancier de Paiement (Confidentiel PMO)"));
+    private void ajouterSectionSuiviIndicateurs(Document doc, Projet projet, int secNum) throws Exception {
+        doc.add(creerTitreSectionElement(secNum + ". Suivi et Indicateurs"));
 
-        PdfPTable table = new PdfPTable(3);
-        table.setWidthPercentage(100);
-        table.setWidths(new float[]{40, 30, 30});
-        table.setSpacingBefore(6);
+        // Table indicateurs (2 colonnes)
+        PdfPTable tableInd = new PdfPTable(2);
+        tableInd.setWidthPercentage(100);
+        tableInd.setWidths(new float[]{50, 50});
+        tableInd.setSpacingBefore(6);
+        tableInd.setSpacingAfter(8);
 
-        ajouterEnTeteTable(table, "Date d'échéance", "Montant (MAD)", "Payé ?");
+        // Cellule 1: Taux d'avancement
+        PdfPCell cellTaux = new PdfPCell();
+        cellTaux.setBorderColor(new Color(220, 225, 235));
+        cellTaux.setPadding(8);
+        cellTaux.setBackgroundColor(COULEUR_EN_TETE);
+        cellTaux.addElement(new Paragraph("Taux d'avancement", FONT_LABEL));
+        String avancement = (projet.getTauxAvancement() != null ? projet.getTauxAvancement() + " %" : "—");
+        Paragraph pTaux = new Paragraph(avancement, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, COULEUR_PRIMAIRE));
+        pTaux.setSpacingBefore(4);
+        cellTaux.addElement(pTaux);
+        tableInd.addCell(cellTaux);
 
-        double totalPaye = 0;
-        int row = 0;
-        for (EcheancePaiement e : echeances) {
-            Color bg = (row++ % 2 == 0) ? COULEUR_LIGNE_PAIR : COULEUR_LIGNE_IMPAIR;
-            ajouterCellule(table, formatDate(e.getDateEcheance()), bg, Element.ALIGN_LEFT);
-            ajouterCellule(table, formatMontant(e.getMontant()), bg, Element.ALIGN_RIGHT);
+        // Cellule 2: État de santé
+        PdfPCell cellSante = new PdfPCell();
+        cellSante.setBorderColor(new Color(220, 225, 235));
+        cellSante.setPadding(8);
+        cellSante.setBackgroundColor(COULEUR_EN_TETE);
+        cellSante.addElement(new Paragraph("État de santé", FONT_LABEL));
+        
+        String etat = safe(projet.getEtatSante());
+        Color couleurEtat = "Vert".equalsIgnoreCase(etat) ? COULEUR_VERT
+                          : "Orange".equalsIgnoreCase(etat) ? COULEUR_ORANGE : "Rouge".equalsIgnoreCase(etat) ? COULEUR_ROUGE : Color.BLACK;
+        Paragraph pSante = new Paragraph(etat, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, couleurEtat));
+        pSante.setSpacingBefore(4);
+        cellSante.addElement(pSante);
+        tableInd.addCell(cellSante);
 
-            boolean paye = Boolean.TRUE.equals(e.getEstPaye());
-            if (paye && e.getMontant() != null) totalPaye += e.getMontant();
+        doc.add(tableInd);
 
-            PdfPCell cellPaye = new PdfPCell(new Phrase(paye ? "✓ Payé" : "En attente",
-                    FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, paye ? COULEUR_VERT : COULEUR_ORANGE)));
-            cellPaye.setBackgroundColor(bg);
-            cellPaye.setPadding(5);
-            cellPaye.setHorizontalAlignment(Element.ALIGN_CENTER);
-            table.addCell(cellPaye);
+        // Commentaires de suivi
+        if (projet.getCommentairesSuivi() != null && !projet.getCommentairesSuivi().isBlank()) {
+            Paragraph labelComm = new Paragraph("Commentaires de suivi :", FONT_LABEL);
+            labelComm.setSpacingAfter(2);
+            doc.add(labelComm);
+            Paragraph comm = new Paragraph(projet.getCommentairesSuivi(), FONT_VALEUR);
+            comm.setIndentationLeft(10);
+            comm.setSpacingAfter(10);
+            doc.add(comm);
         }
 
-        // Ligne de total
-        PdfPCell cellTotLabel = new PdfPCell(new Phrase("TOTAL PAYÉ", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, Color.WHITE)));
-        cellTotLabel.setBackgroundColor(COULEUR_SECONDAIRE);
-        cellTotLabel.setColspan(2);
-        cellTotLabel.setPadding(6);
-        table.addCell(cellTotLabel);
+        // Registre des Risques (avec Plan d'action!)
+        Paragraph titreRisques = new Paragraph("Registre des Risques :", FONT_LABEL);
+        titreRisques.setSpacingBefore(6);
+        titreRisques.setSpacingAfter(4);
+        doc.add(titreRisques);
 
-        PdfPCell cellTotVal = new PdfPCell(new Phrase(formatMontant(totalPaye) + " MAD",
-                FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, Color.WHITE)));
-        cellTotVal.setBackgroundColor(COULEUR_SECONDAIRE);
-        cellTotVal.setPadding(6);
-        cellTotVal.setHorizontalAlignment(Element.ALIGN_RIGHT);
-        table.addCell(cellTotVal);
+        if (projet.getRisques() != null && !projet.getRisques().isEmpty()) {
+            PdfPTable tableRisques = new PdfPTable(4);
+            tableRisques.setWidthPercentage(100);
+            tableRisques.setWidths(new float[]{35, 12, 23, 30});
 
-        doc.add(table);
+            ajouterEnTeteTable(tableRisques, "Description du risque", "Impact", "Responsable", "Plan d'action");
+
+            int row = 0;
+            for (Risque r : projet.getRisques()) {
+                Color bg = (row++ % 2 == 0) ? COULEUR_LIGNE_PAIR : COULEUR_LIGNE_IMPAIR;
+                
+                ajouterCellule(tableRisques, safe(r.getDescription()), bg, Element.ALIGN_LEFT);
+
+                // Impact
+                String impact = safe(r.getImpact());
+                Color impactColor = "Fort".equalsIgnoreCase(impact) ? COULEUR_ROUGE
+                                  : "Moyen".equalsIgnoreCase(impact) ? COULEUR_ORANGE : "Faible".equalsIgnoreCase(impact) ? COULEUR_VERT : Color.BLACK;
+                PdfPCell cellImpact = new PdfPCell(new Phrase(impact,
+                        FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, impactColor)));
+                cellImpact.setBackgroundColor(bg);
+                cellImpact.setPadding(5);
+                cellImpact.setBorderColor(new Color(220, 225, 235));
+                cellImpact.setHorizontalAlignment(Element.ALIGN_CENTER);
+                tableRisques.addCell(cellImpact);
+
+                ajouterCellule(tableRisques, safe(r.getResponsable()), bg, Element.ALIGN_LEFT);
+                ajouterCellule(tableRisques, safe(r.getPlanAction()), bg, Element.ALIGN_LEFT);
+            }
+            doc.add(tableRisques);
+        } else {
+            Paragraph aucunRisque = new Paragraph("Aucun risque identifié.", FONT_VALEUR);
+            aucunRisque.setIndentationLeft(10);
+            doc.add(aucunRisque);
+        }
+
+        // Plan d'Actions
+        Paragraph titreActions = new Paragraph("Plan d'Actions :", FONT_LABEL);
+        titreActions.setSpacingBefore(10);
+        titreActions.setSpacingAfter(4);
+        doc.add(titreActions);
+
+        if (projet.getActions() != null && !projet.getActions().isEmpty()) {
+            PdfPTable tableActions = new PdfPTable(2);
+            tableActions.setWidthPercentage(100);
+            tableActions.setWidths(new float[]{75, 25});
+
+            ajouterEnTeteTable(tableActions, "Description de l'action", "Statut");
+
+            int row = 0;
+            for (Action a : projet.getActions()) {
+                Color bg = (row++ % 2 == 0) ? COULEUR_LIGNE_PAIR : COULEUR_LIGNE_IMPAIR;
+                ajouterCellule(tableActions, safe(a.getDescription()), bg, Element.ALIGN_LEFT);
+                ajouterCellule(tableActions, safe(a.getStatut()), bg, Element.ALIGN_CENTER);
+            }
+            doc.add(tableActions);
+        } else {
+            Paragraph aucuneAction = new Paragraph("Aucune action planifiée.", FONT_VALEUR);
+            aucuneAction.setIndentationLeft(10);
+            doc.add(aucuneAction);
+        }
+
         doc.add(new Paragraph("\n"));
     }
 
@@ -486,6 +585,18 @@ public class RapportService {
         v.setBorder(Rectangle.BOX);
         v.setBorderColor(new Color(210, 220, 235));
         table.addCell(v);
+    }
+
+    private String getChefDeProjetNames(Projet projet) {
+        if (projet.getChefDeProjet() != null && !projet.getChefDeProjet().isEmpty()) {
+            java.util.List<String> names = new java.util.ArrayList<>();
+            for (Utilisateur u : projet.getChefDeProjet()) {
+                names.add(u.getPrenom() + " " + u.getNom());
+            }
+            return String.join(", ", names);
+        }
+        return (projet.getNomChefDeProjet() != null && !projet.getNomChefDeProjet().isBlank())
+                ? projet.getNomChefDeProjet() : "—";
     }
 
     // ── Formatage ──

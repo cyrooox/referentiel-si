@@ -1,0 +1,249 @@
+classDiagram
+    direction TB
+
+    %% --- Enums ---
+    class RoleUser {
+        <<enumeration>>
+        EN_ATTENTE
+        CHEF_PROJET
+        PMO
+        ADMIN
+        MEMBRE
+    }
+
+    %% --- Core Entities ---
+    class Utilisateur {
+        +Long id
+        +String nom
+        +String prenom
+        +String email
+        +String motDePasse
+        +String totpSecret
+        +boolean totpEnabled
+        +RoleUser role
+        +List~Projet~ projetsGeres
+        +List~ListeReference~ referentiels
+    }
+
+    class Projet {
+        +Long id
+        +String code
+        +String nom
+        +String description
+        +String type
+        +String statut
+        +String directionMetier
+        +String phaseCourante
+        +Date dateCreation
+        +Date dateDebutPrevue
+        +Date dateFinPrevue
+        +Date dateReelleFin
+        +Double budgetInitial
+        +Double budgetConsomme
+        +Integer tauxAvancement
+        +String etatSante
+        +String commentairesSuivi
+        +List~Utilisateur~ chefDeProjet
+        +String nomChefDeProjet
+        +String ocrText
+        +String todoList
+        +List~SousPhase~ sousPhases
+        +List~Contrat~ contrats
+        +List~EcheancePaiement~ echeancesPaiement
+        +List~Risque~ risques
+        +List~Action~ actions
+        +List~DocumentLie~ documentsLies
+        +List~Copil~ copilInstances
+        +List~Utilisateur~ membres
+        +List~ProjectTag~ tags
+        +Integer maturityScore
+    }
+
+    class ProjectTag {
+        +Long id
+        +String name
+        +String color
+        +Set~Projet~ projects
+    }
+
+    class ProjectDependency {
+        +Long id
+        +Projet sourceProject
+        +Projet targetProject
+        +String dependencyType
+        +String description
+    }
+
+    class ListeReference {
+        +Long id
+        +String categorie
+        +String code
+        +String libelle
+        +String description
+    }
+
+    %% --- Project Modules ---
+    class SousPhase {
+        +Long id
+        +String nomPhase
+        +String statut
+        +Date dateDebut
+        +Date dateFin
+        +String urlPvReception
+        +Projet projet
+        +List~Livrable~ livrables
+    }
+
+    class Livrable {
+        +Long id
+        +String nom
+        +String urlFichierJoint
+        +Boolean estLivre
+        +Boolean estValide
+        +SousPhase sousPhase
+    }
+
+    class Contrat {
+        +Long id
+        +String reference
+        +String objet
+        +String typeMarche
+        +Integer delaiExecutionMois
+        +Double montantContractuel
+        +String urlDocument
+        +String prestataires
+        +Projet projet
+        +Prestataire prestataire
+    }
+
+    class Prestataire {
+        +Long id
+        +String nom
+        +String contact
+        +List~Contrat~ contrats
+    }
+
+    class EcheancePaiement {
+        +Long id
+        +Double montant
+        +Date dateEcheance
+        +Boolean estPaye
+        +Projet projet
+        +SousPhase sousPhase
+        +Livrable livrable
+    }
+
+    class Risque {
+        +Long id
+        +String description
+        +String impact
+        +String responsable
+        +String planAction
+        +Projet projet
+    }
+
+    class Action {
+        +Long id
+        +String description
+        +String statut
+        +Projet projet
+    }
+
+    class DocumentLie {
+        +Long id
+        +String categorie
+        +String description
+        +String urlFichier
+        +Projet projet
+    }
+
+    class DocumentAnnotation {
+        +Long id
+        +Long documentId
+        +Long projectId
+        +String authorUserId
+        +String authorName
+        +String content
+        +Integer pageNumber
+        +LocalDateTime createdAt
+    }
+
+    class Copil {
+        +Long id
+        +String numero
+        +Date dateCopil
+        +String urlSupport
+        +String urlCompteRendu
+        +Projet projet
+    }
+
+    %% --- System / Security / Utility ---
+    class ValidationRequest {
+        +Long id
+        +String actionType
+        +String actionDescription
+        +Long projectId
+        +String projectCode
+        +String projetNom
+        +String requestedByUserId
+        +String requestedByUserName
+        +String validatedByUserId
+        +String validatedByUserName
+        +String status
+        +String rejectionReason
+        +String proposedChanges
+        +LocalDateTime requestedAt
+        +LocalDateTime resolvedAt
+    }
+
+    class Notification {
+        +Long id
+        +String recipientUserId
+        +String type
+        +String title
+        +String message
+        +Long projectId
+        +String projectCode
+        +boolean read
+        +LocalDateTime createdAt
+    }
+
+    class MfaCode {
+        +Long id
+        +String email
+        +String code
+        +LocalDateTime expiryTime
+        +boolean verified
+    }
+
+    class UserDashboardConfig {
+        +String keycloakUserId
+        +List~Long~ pinnedProjectIds
+        +String widgetConfig
+    }
+
+    %% --- Relationships ---
+    Utilisateur "0..*" --> "1" RoleUser : a pour rôle
+    Utilisateur "0..*" o-- "0..*" ListeReference : a accès aux référentiels
+    
+    Projet "0..*" o-- "0..*" Utilisateur : géré par (chefDeProjet)
+    Projet "0..*" o-- "0..*" Utilisateur : contient (membres)
+    Projet "0..*" o-- "0..*" ProjectTag : taggé avec (tags)
+    
+    ProjectDependency "0..*" --> "1" Projet : sourceProject
+    ProjectDependency "0..*" --> "1" Projet : targetProject
+
+    SousPhase "0..*" --> "1" Projet : appartient à
+    Livrable "0..*" --> "1" SousPhase : fait partie de
+    
+    Contrat "0..*" --> "1" Projet : lié à
+    Contrat "0..*" --> "1" Prestataire : attribué à
+    
+    EcheancePaiement "0..*" --> "1" Projet : liée à
+    EcheancePaiement "0..*" --> "0..1" SousPhase : associée à
+    EcheancePaiement "0..*" --> "0..1" Livrable : associée à
+    
+    Risque "0..*" --> "1" Projet : concerne
+    Action "0..*" --> "1" Projet : planifiée pour
+    DocumentLie "0..*" --> "1" Projet : rattaché à
+    Copil "0..*" --> "1" Projet : instance de

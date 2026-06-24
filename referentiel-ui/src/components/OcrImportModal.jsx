@@ -83,7 +83,7 @@ const OcrImportModal = ({ onClose, onApply }) => {
       }];
     }
 
-    onApply(patch);
+    onApply(patch, result.texteBrut);
     onClose();
   };
 
@@ -106,9 +106,9 @@ const OcrImportModal = ({ onClose, onApply }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-primary-600 to-primary-700">
+        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-primary-600 to-primary-700 shrink-0">
           <div className="flex items-center gap-3 text-white">
             <Sparkles className="w-6 h-6" />
             <div>
@@ -121,7 +121,7 @@ const OcrImportModal = ({ onClose, onApply }) => {
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 overflow-y-auto flex-1">
           {/* Zone de drop */}
           {status !== 'success' && (
             <div
@@ -164,13 +164,38 @@ const OcrImportModal = ({ onClose, onApply }) => {
               </div>
 
               {fieldsDetected.length > 0 ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {fieldsDetected.map(([label, value]) => (
-                    <div key={label} className="bg-primary-50 border border-primary-100 rounded-lg px-4 py-2">
-                      <p className="text-xs text-primary-600 font-medium">{label}</p>
-                      <p className="text-sm text-slate-800 font-semibold truncate" title={String(value)}>{String(value)}</p>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {fieldsDetected.map(([label, value]) => (
+                      <div key={label} className="bg-primary-50 border border-primary-100 rounded-lg px-4 py-2">
+                        <p className="text-xs text-primary-600 font-medium">{label}</p>
+                        <p className="text-sm text-slate-800 font-semibold truncate" title={String(value)}>{String(value)}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {result.livrablesExtraits && result.livrablesExtraits.length > 0 && (
+                    <div className="pt-4 border-t border-slate-100">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        📦 Livrables détectés ({result.livrablesExtraits.length})
+                      </p>
+                      <div className="max-h-36 overflow-y-auto space-y-2 pr-1">
+                        {result.livrablesExtraits.map((liv, idx) => (
+                          <div key={idx} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 text-xs">
+                            <div className="truncate flex-1 pr-3">
+                              <p className="font-semibold text-slate-700 truncate">{liv.nomLivrable}</p>
+                              {liv.description && <p className="text-slate-400 truncate text-[10px] mt-0.5">{liv.description}</p>}
+                            </div>
+                            {liv.datePrevue && (
+                              <span className="shrink-0 bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-lg font-mono font-semibold">
+                                {liv.datePrevue}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               ) : (
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
@@ -197,7 +222,7 @@ const OcrImportModal = ({ onClose, onApply }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center shrink-0">
           <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium text-sm transition-colors">
             Annuler
           </button>
@@ -215,7 +240,7 @@ const OcrImportModal = ({ onClose, onApply }) => {
                 )}
               </button>
             )}
-            {status === 'success' && fieldsDetected.length > 0 && (
+            {status === 'success' && (fieldsDetected.length > 0 || (result?.livrablesExtraits && result.livrablesExtraits.length > 0)) && (
               <button
                 onClick={handleApply}
                 className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"

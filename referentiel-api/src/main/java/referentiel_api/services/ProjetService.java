@@ -14,6 +14,9 @@ public class ProjetService {
     @Autowired
     private ProjetRepository projetRepository;
 
+    @Autowired
+    private referentiel_api.repositories.PrestataireRepository prestataireRepository;
+
     public List<Projet> getAllProjets() {
         return projetRepository.findAll();
     }
@@ -31,11 +34,30 @@ public class ProjetService {
             String year = String.valueOf(java.time.Year.now().getValue());
             String prefix = "PRJ-" + year + "-";
             long count = projetRepository.countByCodeStartingWith(prefix);
-            String newCode = String.format("%s%03d", prefix, count + 1);
+            long suffix = count + 1;
+            String newCode;
+            do {
+                newCode = String.format("%s%03d", prefix, suffix);
+                suffix++;
+            } while (projetRepository.findByCode(newCode).isPresent());
             projet.setCode(newCode);
         }
 
-        if (projet.getContrats() != null) projet.getContrats().forEach(x -> x.setProjet(projet));
+        if (projet.getContrats() != null) {
+            projet.getContrats().forEach(x -> {
+                x.setProjet(projet);
+                if (x.getPrestataires() != null && !x.getPrestataires().isBlank()) {
+                    String name = x.getPrestataires().trim();
+                    referentiel_api.entities.Prestataire prestataire = prestataireRepository.findByNom(name)
+                        .orElseGet(() -> {
+                            referentiel_api.entities.Prestataire newP = new referentiel_api.entities.Prestataire();
+                            newP.setNom(name);
+                            return prestataireRepository.save(newP);
+                        });
+                    x.setPrestataire(prestataire);
+                }
+            });
+        }
         if (projet.getSousPhases() != null) projet.getSousPhases().forEach(x -> x.setProjet(projet));
         if (projet.getEcheancesPaiement() != null) projet.getEcheancesPaiement().forEach(x -> x.setProjet(projet));
         if (projet.getRisques() != null) projet.getRisques().forEach(x -> x.setProjet(projet));

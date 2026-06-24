@@ -270,6 +270,7 @@ const UsersManagement = () => {
                   <option value="CHEF_PROJET">Chef de Projet</option>
                   <option value="PMO">PMO</option>
                   <option value="ADMIN">Administrateur</option>
+                  <option value="MEMBRE">Membre</option>
                 </select>
                 {editingUser.role === 'EN_ATTENTE' && (
                   <p className="text-xs text-orange-600 mt-1">Cet utilisateur ne peut actuellement pas se connecter.</p>

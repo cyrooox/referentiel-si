@@ -6,4 +6,5 @@ import referentiel_api.entities.Prestataire;
 
 @Repository
 public interface PrestataireRepository extends JpaRepository<Prestataire, Long> {
+    java.util.Optional<Prestataire> findByNom(String nom);
 }

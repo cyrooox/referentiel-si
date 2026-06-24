@@ -26,11 +26,19 @@ public class Utilisateur {
     @Column(nullable = false)
     private String motDePasse;
 
+    // ── TOTP 2FA (Microsoft Authenticator / RFC 6238) ──────────────────────
+    @Column(name = "totp_secret")
+    private String totpSecret;
+
+    @Column(name = "totp_enabled", nullable = false)
+    private boolean totpEnabled = false;
+    // ────────────────────────────────────────────────────────────────────────
+
     @Enumerated(EnumType.STRING)
     private RoleUser role;
 
     @JsonIgnore
-    @OneToMany(mappedBy = "chefDeProjet", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ManyToMany(mappedBy = "chefDeProjet", fetch = FetchType.LAZY)
     private List<Projet> projetsGeres;
 
     @ManyToMany(fetch = FetchType.EAGER)
