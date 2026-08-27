@@ -73,12 +73,7 @@ function App() {
             </RoleRoute>
           } />
 
-          {/* File de Validations — PMO + Admin */}
-          <Route path="validations" element={
-            <RoleRoute allowedRoles={['PMO', 'ADMIN']}>
-              <ValidationRequestsPage />
-            </RoleRoute>
-          } />
+
 
           {/* Utilisateurs — Admin uniquement */}
           <Route path="users" element={

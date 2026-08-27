@@ -289,32 +289,14 @@ export default function BudgetSimulator() {
     if (!projet || !result) return;
     setSaving(true);
     setSaveMsg('');
-    const isPmoOrAdmin = userInfo?.role === 'PMO' || userInfo?.role === 'ADMIN';
     try {
-      if (isPmoOrAdmin) {
-        await api.put(`/projets/${projet.id}`, {
-          ...projet,
-          budgetInitial: result.newTotal,
-          dateFinPrevue: result.newEndDate ?? projet.dateFinPrevue,
-        });
-        setSaveMsg('✅ Modifications appliquées avec succès');
-        setProjet((p) => ({ ...p, budgetInitial: result.newTotal, dateFinPrevue: result.newEndDate ?? p.dateFinPrevue }));
-      } else {
-        await api.post('/validation-requests', {
-          actionType: 'MODIFICATION_BUDGET',
-          actionDescription: `Simulation budgétaire : ajustement du budget initial à ${fmt(result.newTotal)} (précédemment ${fmt(projet.budgetInitial)}) et modification de la date de fin au ${fmtDate(result.newEndDate)}.`,
-          projectId: projet.id,
-          projectCode: projet.code,
-          projetNom: projet.nom,
-          requestedByUserId: userInfo?.id,
-          requestedByUserName: `${userInfo?.prenom ?? ''} ${userInfo?.nom ?? ''}`.trim(),
-          proposedChanges: JSON.stringify({
-            budgetInitial: result.newTotal,
-            dateFinPrevue: result.newEndDate ?? projet.dateFinPrevue
-          })
-        });
-        setSaveMsg('✅ Demande de modification budgétaire soumise pour validation au PMO');
-      }
+      await api.put(`/projets/${projet.id}`, {
+        ...projet,
+        budgetInitial: result.newTotal,
+        dateFinPrevue: result.newEndDate ?? projet.dateFinPrevue,
+      });
+      setSaveMsg('✅ Modifications appliquées avec succès');
+      setProjet((p) => ({ ...p, budgetInitial: result.newTotal, dateFinPrevue: result.newEndDate ?? p.dateFinPrevue }));
       reset();
     } catch {
       setSaveMsg('❌ Erreur lors de la sauvegarde');

@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Visualisation et téléchargement des diagrammes UML du Système Référentiel SI - Cas d'utilisation et diagramme de classes.">
+    <title>Diagrammes UML - Système Référentiel SI</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Mermaid library -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            securityLevel: 'loose',
+            flowchart: { useMaxWidth: true, htmlLabels: true },
+            themeVariables: {
+                background: '#1e293b',
+                primaryColor: '#3b82f6',
+                primaryTextColor: '#f8fafc',
+                lineColor: '#64748b',
+                secondaryColor: '#334155',
+                tertiaryColor: '#0f172a'
+            }
+        });
+    </script>
+
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --primary: #4f46e5;
+            --primary-hover: #6366f1;
+            --secondary: #10b981;
+            --secondary-hover: #34d399;
+            --font-main: 'Plus Jakarta Sans', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 2.75rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #818cf8, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+            letter-spacing: -0.025em;
+        }
+
+        p.subtitle {
+            color: var(--text-secondary);
+            font-size: 1.15rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Navigation Tabs */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            background: rgba(15, 23, 42, 0.6);
+            padding: 8px;
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .tab-btn {
+            background: transparent;
+            color: var(--text-secondary);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--text-primary);
+            background: var(--primary);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+        }
+
+        /* Content Sections */
+        .tab-content {
+            display: none;
+            animation: slideUp 0.5s ease-out forwards;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 30px;
+            backdrop-filter: blur(16px);
+            margin-bottom: 30px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .actions-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: var(--secondary);
+        }
+
+        .btn-success:hover {
+            background: var(--secondary-hover);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        /* Diagram Canvas Area */
+        .diagram-container {
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            overflow-x: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+        }
+
+        .mermaid {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Keyframes */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .actions-group {
+                width: 100%;
+            }
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: white;
+                color: black;
+                padding: 0;
+            }
+            .tabs, .actions-group, header p, .btn {
+                display: none !important;
+            }
+            .tab-content {
+                display: block !important;
+                page-break-after: always;
+            }
+            .card {
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                padding: 0;
+            }
+            .diagram-container {
+                background: white;
+                border: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 id="main-title">Système Référentiel SI - Diagrammes UML</h1>
+            <p class="subtitle">Visualisez, exportez et téléchargez les modèles d'architecture du projet.</p>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="tabs" role="tablist">
+            <button id="tab-usecase-btn" class="tab-btn active" onclick="switchTab('usecase')" role="tab" aria-selected="true" aria-controls="usecase-content">Diagramme de Cas d'Utilisation</button>
+            <button id="tab-class-btn" class="tab-btn" onclick="switchTab('class')" role="tab" aria-selected="false" aria-controls="class-content">Diagramme de Classes</button>
+        </nav>
+
+        <!-- Use Case Tab Content -->
+        <section id="usecase-content" class="tab-content active" role="tabpanel" aria-labelledby="tab-usecase-btn">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">🧑‍💻 Acteurs et Cas d'Utilisation</h2>
+                    <div class="actions-group">
+                        <button id="btn-uc-svg" class="btn" onclick="downloadSVG('uc-diagram-container', 'diagramme_cas_utilisation.svg')">💾 Télécharger SVG</button>
+                        <button id="btn-uc-png" class="btn btn-success" onclick="downloadPNG('uc-diagram-container', 'diagramme_cas_utilisation.png')">📸 Télécharger PNG</button>
+                        <button id="btn-uc-print" class="btn btn-outline" onclick="window.print()">🖨️ Imprimer</button>
+                    </div>
+                </div>
+                <div class="diagram-container" id="uc-diagram-container">
+                    <div class="mermaid">
+graph LR
+    %% Acteurs
+    CdP["Chef de Projet"]
+    PMO["PMO / Directeur"]
+    Admin["Administrateur Fonctionnel"]
+    User["Tous les Acteurs"]
+
+    %% Héritage d'acteurs
+    CdP --> User
+    PMO --> User
+    Admin --> User
+
+    %% Frontière du Système
+    subgraph Système Référentiel SI
+        UC_Auth(["S'authentifier / MFA"])
+        UC_Consulter(["Consulter les projets"])
+        UC_Filtrer(["Filtrer les projets"])
+        
+        %% Chef de Projet
+        UC_ModProj(["Modifier un projet"])
+        UC_AddPhases(["Ajouter des phases"])
+        UC_AddLivrables(["Ajouter des livrables"])
+        UC_AssocContrat(["Associer un contrat"])
+        UC_AssocPrest(["Associer un prestataire"])
+        UC_SaisirBudget(["Saisir le budget"])
+        UC_JointDoc(["Joindre un document"])
+        
+        %% PMO
+        UC_CreProj(["Créer un projet PMO"])
+        UC_ConsKPI(["Consulter les indicateurs / KPI"])
+        UC_ExportRapports(["Exporter des rapports"])
+        
+        %% Administrateur
+        UC_GererUsers(["Gérer les utilisateurs"])
+        UC_GererRefs(["Gérer les listes de références"])
+    end
+
+    %% Associations Acteurs -> Use Cases
+    User --> UC_Auth
+    User --> UC_Consulter
+    User --> UC_Filtrer
+
+    CdP --> UC_ModProj
+    CdP --> UC_AddPhases
+    CdP --> UC_AddLivrables
+    CdP --> UC_AssocContrat
+    CdP --> UC_AssocPrest
+    CdP --> UC_SaisirBudget
+    CdP --> UC_JointDoc
+
+    PMO --> UC_CreProj
+    PMO --> UC_ConsKPI
+    PMO --> UC_ExportRapports
+
+    Admin --> UC_GererUsers
+    Admin --> UC_GererRefs
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Class Diagram Tab Content -->
+        <section id="class-content" class="tab-content" role="tabpanel" aria-labelledby="tab-class-btn">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">📊 Modèle de Données & Classes</h2>
+                    <div class="actions-group">
+                        <button id="btn-cls-svg" class="btn" onclick="downloadSVG('class-diagram-container', 'diagramme_classes.svg')">💾 Télécharger SVG</button>
+                        <button id="btn-cls-png" class="btn btn-success" onclick="downloadPNG('class-diagram-container', 'diagramme_classes.png')">📸 Télécharger PNG</button>
+                        <a id="btn-cls-source" class="btn btn-outline" href="diagramme_classes.mmd" download>📄 Fichier .MMD</a>
+                    </div>
+                </div>
+                <div class="diagram-container" id="class-diagram-container">
+                    <div class="mermaid">
+classDiagram
+    direction TB
+
+    %% --- Enums ---
+    class RoleUser {
+        <<enumeration>>
+        EN_ATTENTE
+        CHEF_PROJET
+        PMO
+        ADMIN
+        MEMBRE
+    }
+
+    %% --- Core Entities ---
+    class Utilisateur {
+        +Long id
+        +String nom
+        +String prenom
+        +String email
+        +String motDePasse
+        +String totpSecret
+        +boolean totpEnabled
+        +RoleUser role
+        +List~Projet~ projetsGeres
+        +List~ListeReference~ referentiels
+    }
+
+    class Projet {
+        +Long id
+        +String code
+        +String nom
+        +String description
+        +String type
+        +String statut
+        +String directionMetier
+        +String phaseCourante
+        +Date dateCreation
+        +Date dateDebutPrevue
+        +Date dateFinPrevue
+        +Date dateReelleFin
+        +Double budgetInitial
+        +Double budgetConsomme
+        +Integer tauxAvancement
+        +String etatSante
+        +String commentairesSuivi
+        +List~Utilisateur~ chefDeProjet
+        +String nomChefDeProjet
+        +String ocrText
+        +String todoList
+        +List~SousPhase~ sousPhases
+        +List~Contrat~ contrats
+        +List~EcheancePaiement~ echeancesPaiement
+        +List~Risque~ risques
+        +List~Action~ actions
+        +List~DocumentLie~ documentsLies
+        +List~Copil~ copilInstances
+        +List~Utilisateur~ membres
+        +List~ProjectTag~ tags
+        +Integer maturityScore
+    }
+
+    class ProjectTag {
+        +Long id
+        +String name
+        +String color
+        +Set~Projet~ projects
+    }
+
+    class ProjectDependency {
+        +Long id
+        +Projet sourceProject
+        +Projet targetProject
+        +String dependencyType
+        +String description
+    }
+
+    class ListeReference {
+        +Long id
+        +String categorie
+        +String code
+        +String libelle
+        +String description
+    }
+
+    %% --- Project Modules ---
+    class SousPhase {
+        +Long id
+        +String nomPhase
+        +String statut
+        +Date dateDebut
+        +Date dateFin
+        +String urlPvReception
+        +Projet projet
+        +List~Livrable~ livrables
+    }
+
+    class Livrable {
+        +Long id
+        +String nom
+        +String urlFichierJoint
+        +Boolean estLivre
+        +Boolean estValide
+        +SousPhase sousPhase
+    }
+
+    class Contrat {
+        +Long id
+        +String reference
+        +String objet
+        +String typeMarche
+        +Integer delaiExecutionMois
+        +Double montantContractuel
+        +String urlDocument
+        +String prestataires
+        +Projet projet
+        +Prestataire prestataire
+    }
+
+    class Prestataire {
+        +Long id
+        +String nom
+        +String contact
+        +List~Contrat~ contrats
+    }
+
+    class EcheancePaiement {
+        +Long id
+        +Double montant
+        +Date dateEcheance
+        +Boolean estPaye
+        +Projet projet
+        +SousPhase sousPhase
+        +Livrable livrable
+    }
+
+    class Risque {
+        +Long id
+        +String description
+        +String impact
+        +String responsable
+        +String planAction
+        +Projet projet
+    }
+
+    class Action {
+        +Long id
+        +String description
+        +String statut
+        +Projet projet
+    }
+
+    class DocumentLie {
+        +Long id
+        +String categorie
+        +String description
+        +String urlFichier
+        +Projet projet
+    }
+
+    class DocumentAnnotation {
+        +Long id
+        +Long documentId
+        +Long projectId
+        +String authorUserId
+        +String authorName
+        +String content
+        +Integer pageNumber
+        +LocalDateTime createdAt
+    }
+
+    class Copil {
+        +Long id
+        +String numero
+        +Date dateCopil
+        +String urlSupport
+        +String urlCompteRendu
+        +Projet projet
+    }
+
+    %% --- System / Security / Utility ---
+    class ValidationRequest {
+        +Long id
+        +String actionType
+        +String actionDescription
+        +Long projectId
+        +String projectCode
+        +String projetNom
+        +String requestedByUserId
+        +String requestedByUserName
+        +String validatedByUserId
+        +String validatedByUserName
+        +String status
+        +String rejectionReason
+        +String proposedChanges
+        +LocalDateTime requestedAt
+        +LocalDateTime resolvedAt
+    }
+
+    class Notification {
+        +Long id
+        +String recipientUserId
+        +String type
+        +String title
+        +String message
+        +Long projectId
+        +String projectCode
+        +boolean read
+        +LocalDateTime createdAt
+    }
+
+    class MfaCode {
+        +Long id
+        +String email
+        +String code
+        +LocalDateTime expiryTime
+        +boolean verified
+    }
+
+    class UserDashboardConfig {
+        +String keycloakUserId
+        +List~Long~ pinnedProjectIds
+        +String widgetConfig
+    }
+
+    %% --- Relationships ---
+    Utilisateur "0..*" --> "1" RoleUser : a pour rôle
+    Utilisateur "0..*" o-- "0..*" ListeReference : a accès aux référentiels
+    
+    Projet "0..*" o-- "0..*" Utilisateur : géré par (chefDeProjet)
+    Projet "0..*" o-- "0..*" Utilisateur : contient (membres)
+    Projet "0..*" o-- "0..*" ProjectTag : taggé avec (tags)
+    
+    ProjectDependency "0..*" --> "1" Projet : sourceProject
+    ProjectDependency "0..*" --> "1" Projet : targetProject
+
+    SousPhase "0..*" --> "1" Projet : appartient à
+    Livrable "0..*" --> "1" SousPhase : fait partie de
+    
+    Contrat "0..*" --> "1" Projet : lié à
+    Contrat "0..*" --> "1" Prestataire : attribué à
+    
+    EcheancePaiement "0..*" --> "1" Projet : liée à
+    EcheancePaiement "0..*" --> "0..1" SousPhase : associée à
+    EcheancePaiement "0..*" --> "0..1" Livrable : associée à
+    
+    Risque "0..*" --> "1" Projet : concerne
+    Action "0..*" --> "1" Projet : planifiée pour
+    DocumentLie "0..*" --> "1" Projet : rattaché à
+    Copil "0..*" --> "1" Projet : instance de
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        function switchTab(tabId) {
+            // Remove active classes
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.setAttribute('aria-selected', 'false');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Set active class
+            if (tabId === 'usecase') {
+                document.getElementById('tab-usecase-btn').classList.add('active');
+                document.getElementById('tab-usecase-btn').setAttribute('aria-selected', 'true');
+                document.getElementById('usecase-content').classList.add('active');
+            } else if (tabId === 'class') {
+                document.getElementById('tab-class-btn').classList.add('active');
+                document.getElementById('tab-class-btn').setAttribute('aria-selected', 'true');
+                document.getElementById('class-content').classList.add('active');
+            }
+        }
+
+        function getSVGSource(containerId) {
+            const container = document.getElementById(containerId);
+            const svg = container.querySelector('svg');
+            if (!svg) return null;
+            
+            const serializer = new XMLSerializer();
+            let source = serializer.serializeToString(svg);
+            
+            if (!source.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)) {
+                source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+            }
+            if (!source.match(/^<svg[^>]+xmlns:xlink="http:\/\/www\.w3\.org\/1999\/xlink"/)) {
+                source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+            }
+            
+            return source;
+        }
+
+        function downloadSVG(containerId, filename) {
+            const source = getSVGSource(containerId);
+            if (!source) {
+                alert("Le diagramme n'est pas encore rendu ou disponible.");
+                return;
+            }
+            
+            const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
+            const trigger = document.createElement('a');
+            trigger.href = url;
+            trigger.download = filename;
+            document.body.appendChild(trigger);
+            trigger.click();
+            document.body.removeChild(trigger);
+        }
+
+        function downloadPNG(containerId, filename) {
+            const container = document.getElementById(containerId);
+            const svg = container.querySelector('svg');
+            if (!svg) {
+                alert("Le diagramme n'est pas encore rendu.");
+                return;
+            }
+            
+            const source = getSVGSource(containerId);
+            const svgBlob = new Blob([source], {type: "image/svg+xml;charset=utf-8"});
+            const url = URL.createObjectURL(svgBlob);
+            
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const scale = 2; // For higher DPI
+                const bounds = svg.getBoundingClientRect();
+                
+                canvas.width = bounds.width * scale;
+                canvas.height = bounds.height * scale;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = "#0f172a"; // Match the dark background
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.scale(scale, scale);
+                ctx.drawImage(img, 0, 0);
+                
+                const pngUrl = canvas.toDataURL("image/png");
+                const trigger = document.createElement('a');
+                trigger.href = pngUrl;
+                trigger.download = filename;
+                document.body.appendChild(trigger);
+                trigger.click();
+                document.body.removeChild(trigger);
+                URL.revokeObjectURL(url);
+            };
+            img.src = url;
+        }
+    </script>
+</body>
+</html>

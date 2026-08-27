@@ -491,110 +491,19 @@ const NewProjectWizard = () => {
       }
 
       if (id) {
-        const isPmoOrAdmin = userInfo?.role === 'PMO' || userInfo?.role === 'ADMIN';
-        let res = null;
-        
-        if (!isPmoOrAdmin && originalProject) {
-          const normalizeDate = (d) => {
-            if (!d) return '';
-            return new Date(d).toISOString().split('T')[0];
-          };
-          
-          const budgetChanged =
-            Number(originalProject.budgetInitial ?? 0) !== Number(formData.budgetInitial ?? 0) ||
-            normalizeDate(originalProject.dateFinPrevue) !== normalizeDate(formData.dateFinPrevue);
-            
-          const phasesChanged = (() => {
-            const origPhases = originalProject.sousPhases || [];
-            const currPhases = formData.sousPhases || [];
-            if (origPhases.length !== currPhases.length) return true;
-            for (let i = 0; i < origPhases.length; i++) {
-              const op = origPhases[i];
-              const cp = currPhases[i];
-              if (
-                op.nomPhase !== cp.nomPhase ||
-                op.statut !== cp.statut ||
-                normalizeDate(op.dateDebut) !== normalizeDate(cp.dateDebut) ||
-                normalizeDate(op.dateFin) !== normalizeDate(cp.dateFin) ||
-                op.urlPvReception !== cp.urlPvReception
-              ) return true;
-            }
-            return false;
-          })();
-
-          let hasPendingValidations = false;
-          if (budgetChanged) {
-            await api.post('/validation-requests', {
-              actionType: 'MODIFICATION_BUDGET',
-              actionDescription: `Modification de budget proposée par le Chef de Projet : budget initial proposé à ${formData.budgetInitial} MAD (précédemment ${originalProject.budgetInitial} MAD) et date de fin au ${formData.dateFinPrevue ? new Date(formData.dateFinPrevue).toLocaleDateString('fr-FR') : '—'}.`,
-              projectId: id,
-              projectCode: originalProject.code,
-              projetNom: originalProject.nom,
-              requestedByUserId: userInfo?.id,
-              requestedByUserName: `${userInfo?.prenom ?? ''} ${userInfo?.nom ?? ''}`.trim(),
-              proposedChanges: JSON.stringify({
-                budgetInitial: formData.budgetInitial,
-                dateFinPrevue: formData.dateFinPrevue ? new Date(formData.dateFinPrevue).toISOString().split('T')[0] : null
-              })
-            });
-            hasPendingValidations = true;
-          }
-
-          if (phasesChanged) {
-            await api.post('/validation-requests', {
-              actionType: 'VALIDATION_PHASE',
-              actionDescription: `Modification de la planification des phases & livrables proposée par le Chef de Projet.`,
-              projectId: id,
-              projectCode: originalProject.code,
-              projetNom: originalProject.nom,
-              requestedByUserId: userInfo?.id,
-              requestedByUserName: `${userInfo?.prenom ?? ''} ${userInfo?.nom ?? ''}`.trim(),
-              proposedChanges: JSON.stringify({
-                sousPhases: formData.sousPhases
-              })
-            });
-            hasPendingValidations = true;
-          }
-
-          // Revert budget and phases in direct payload
-          payload.budgetInitial = originalProject.budgetInitial;
-          payload.dateFinPrevue = originalProject.dateFinPrevue;
-          payload.sousPhases = originalProject.sousPhases ? originalProject.sousPhases.map(sp => ({ ...sp, projet: { id: parseInt(id) } })) : [];
-
-          res = await api.put(`/projets/${id}`, payload);
-          const p = res.data;
-          
-          setFormData({
-            ...p,
-            chefDeProjet: p.chefDeProjet || [],
-            contrats: p.contrats || [],
-            echeancesPaiement: p.echeancesPaiement || [],
-            sousPhases: p.sousPhases ? p.sousPhases.map(sp => ({ ...sp, isApplied: true })) : [],
-            risques: p.risques || [],
-            documentsLies: p.documentsLies || [],
-            copilInstances: p.copilInstances || []
-          });
-
-          if (hasPendingValidations) {
-            setSuccess("Les autres informations ont été enregistrées. Les modifications de budget et/ou de phases ont été soumises au PMO pour validation.");
-          } else {
-            setSuccess("Le projet a été mis à jour avec succès.");
-          }
-        } else {
-          res = await api.put(`/projets/${id}`, payload);
-          const p = res.data;
-          setFormData({
-            ...p,
-            chefDeProjet: p.chefDeProjet || [],
-            contrats: p.contrats || [],
-            echeancesPaiement: p.echeancesPaiement || [],
-            sousPhases: p.sousPhases ? p.sousPhases.map(sp => ({ ...sp, isApplied: true })) : [],
-            risques: p.risques || [],
-            documentsLies: p.documentsLies || [],
-            copilInstances: p.copilInstances || []
-          });
-          setSuccess("Le projet a été mis à jour avec succès.");
-        }
+        const res = await api.put(`/projets/${id}`, payload);
+        const p = res.data;
+        setFormData({
+          ...p,
+          chefDeProjet: p.chefDeProjet || [],
+          contrats: p.contrats || [],
+          echeancesPaiement: p.echeancesPaiement || [],
+          sousPhases: p.sousPhases ? p.sousPhases.map(sp => ({ ...sp, isApplied: true })) : [],
+          risques: p.risques || [],
+          documentsLies: p.documentsLies || [],
+          copilInstances: p.copilInstances || []
+        });
+        setSuccess("Le projet a été mis à jour avec succès.");
 
         if (res?.data?.ocrText) {
           setOcrTextContent(res.data.ocrText);

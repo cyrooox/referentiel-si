@@ -231,21 +231,7 @@ const MainLayout = () => {
             </Link>
           )}
 
-          {/* Validations — PMO + Admin */}
-          {(isPMO || isAdmin) && (
-            <Link
-              to="/validations"
-              className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all font-medium text-sm ${
-                isActive('/validations') ? 'font-semibold' : 'hover:bg-white/10'
-              }`}
-              style={isActive('/validations') ? {background:'#6B9B2D', color:'white'} : {color:'rgba(255,255,255,0.8)'}}
-            >
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="w-5 h-5" />
-                Validations
-              </div>
-            </Link>
-          )}
+
 
           {/* Ressources & Accès — Admin uniquement */}
           {isAdmin && (

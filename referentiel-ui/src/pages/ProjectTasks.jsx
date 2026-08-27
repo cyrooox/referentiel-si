@@ -119,32 +119,15 @@ const ProjectTasks = () => {
     setSaving(true);
     setError('');
     setSuccess('');
-    const canSaveDirectly = userInfo?.role === 'PMO' || userInfo?.role === 'ADMIN' || userInfo?.role === 'CHEF_PROJET';
     try {
-      if (canSaveDirectly) {
-        const payload = {
-          ...projectData,
-          todoList: JSON.stringify(todoTasks)
-        };
-        
-        const res = await api.put(`/projets/${id}`, payload);
-        setProjectData(res.data);
-        setSuccess("Tâches enregistrées avec succès !");
-      } else {
-        await api.post('/validation-requests', {
-          actionType: 'MODIFICATION_TACHES',
-          actionDescription: `Mise à jour proposée pour la liste des tâches / actions du projet par le Chef de Projet.`,
-          projectId: projectData.id,
-          projectCode: projectData.code,
-          projetNom: projectData.nom,
-          requestedByUserId: userInfo?.id,
-          requestedByUserName: `${userInfo?.prenom ?? ''} ${userInfo?.nom ?? ''}`.trim(),
-          proposedChanges: JSON.stringify({
-            todoList: JSON.stringify(todoTasks)
-          })
-        });
-        setSuccess("Votre proposition de modification des tâches a été soumise au PMO pour validation.");
-      }
+      const payload = {
+        ...projectData,
+        todoList: JSON.stringify(todoTasks)
+      };
+      
+      const res = await api.put(`/projets/${id}`, payload);
+      setProjectData(res.data);
+      setSuccess("Tâches enregistrées avec succès !");
       setTimeout(() => setSuccess(''), 6000);
     } catch (err) {
       setError("Erreur lors de l'enregistrement des tâches : " + err.message);
